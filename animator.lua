@@ -5,34 +5,63 @@ animator = {}
 function animator.load()
     animator.boneCount = 0
     animator.imgCount = 0
-    animator.boneMap = {}
-    animator.imgMap = {}
-    animator.elementMap = {}
+    animator.pi = math.pi
+    animator.piTimes2 = math.pi*2.0
+    animator.piBy2 = math.pi*0.5
 end
 
 
+
+
+-- Skeletons are the basis of bone animations, a skeleton is basically just a set of bones and images with a predefined, static hierarchy
 function animator.newSkeleton(name, path)
     local skel = {
         tp="skeleton",
         name=name, 
         projectPath=path, 
-        animations={}
+        defaultPose = nil,
+        animations={},
+        boneCount = 0,
+        imgCount = 0,
+        elementMap = {},
+        imageList = {}
     }
     skel.rootChild = animator.newBone("#root", skel)
+    animator.refreshImages(skel)
     return skel
 end
 
-function animator.newPose(skel)
 
+
+-- Poses are current configurations of a specific skeleton; they've got a state list, assigning a list of transformations to each bone or image
+-- transformation list contains a list of values which will be assigned to an attribute (like x, y, angle, scale..) 
+function animator.newPose(skel)
+    local pose = {}
+    for id,element in ipairs(skel.elementMap) do
+        pose.state[id] = {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
+    end
 end
 
+
+
+-- Bones are invisible elements of a skeleton and are usually bound to other bones (i.e. have one parent and 0..n children)
+-- Bones can be animated using animations and keyframes, affecting position, rotation and alpha
 function animator.newBone(name, parent)
-    animator.boneCount = animator.boneCount + 1
+    if parent.tp ~= "bone" and parent.rootNode then parent = parent.rootNode end
+    if parent.tp == "bone" then
+        -- Child of other Node
+        parent.childs[#parent.childs+1] = node
+        node.skel = parent.skel
+    else
+        -- is Root Node
+        node.skel = parent
+    end
+    node.skel.boneCount = node.skel.boneCount + 1
     -- Create Bone
     local node = {
         tp="bone",
         name=name, 
-        id="b" .. animator.boneCount,
+        id="b" .. node.skel.boneCount,
         parent=parent, 
         images={}, 
         childs={}, 
@@ -49,31 +78,30 @@ function animator.newBone(name, parent)
         y=0, 
         alpha = 1.0,
         angle = 0,
+        length = 64, --doesn't affect anything, just for editor/debug rendering
         -- base system for children
         baseDX = 1.0, 
         baseDY = 1.0
     }
-    if parent.tp == "bone" then
-        -- Child of other Node
-        parent.childs[#parent.childs+1] = node
-        node.skel = parent.skel
-    else
-        -- is Root Node
-        node.skel = parent
-    end
-    animator.boneMap[node.id] = node
-    animator.elementMap[node.id] = node
+    node.skel.elementMap[node.id] = node
     return node
 end
 
+
+
+-- Images can be attached to bones and are the only part of the skeleton that is drawn within the game
+-- Images can be animated as well (position, scale and alpha), offset is initialized as the image's center
+-- but doesn't need to be changed, since images themselves are not rotated, but the respective bone they're
+-- attached to
 function animator.newImage(imgName, bone)
-    animator.imgCount = animator.imgCount + 1
+    bone.skel.imgCount = bone.skel.imgCount + 1
     -- Create new instance of existing image as child of Bone
     local img = {
         tp="img",
         name=imgName, 
-        id = "i" .. animator.imgCount
+        id = "i" .. bone.skel.imgCount
         bone=bone, 
+        skel=bone.skel,
         scaleX=1.0, 
         scaleY=1.0, 
         x = 0,
@@ -85,16 +113,20 @@ function animator.newImage(imgName, bone)
     }
     -- Append to bone
     bone.images[#bone.images+1] = img
-    animator.imgMap[img.id] = img
-    animator.elementMap[img.id] = img
+    img.skel.elementMap[img.id] = img
     return img
 end
 
+
+
+-- An animation (e.g. "run", "idle", "attack", ...) defines the transformations for a skeleton within a certain fixed
+-- time frame; it contains a list of keyframes, each of which influences one or more attributes of a bone at a
+-- certain point in time
 function animator.newAnimation(name, skel)
     local ani = {
         tp="ani",
         name = name,
-        skeleton = skel,
+        skel = skel,
         duration = 1.0,
         keyframes = {}
     }
@@ -108,13 +140,25 @@ function animator.newAnimation(name, skel)
     return ani
 end
 
+
+
+-- Keyframes are part of an animation and bound to a single bone, they're used to animate one or more 
+-- attributes of that bone; when using nil values for attributes, they are ignored in this keyframe and
+-- instead interpolated between different, appropriate keyframes
 function animator.newKeyframe(ani, p, elementID, xpos, ypos, angle, xscale, yscale, alpha)
+    local element = nil
+    if type(elementID) == "string" then
+        element = ani.skel.elementMap[elementID]
+    else
+        element = elementID
+        elementID = element.id
+    end
     local keyframe = {
         tp="keyframe",
         ani = ani,
         p = p,
         elementID = elementID,
-        element = animator.elementMap[elementID],
+        element = element,
         x = xpos,
         y = ypos,
         angle = angle,
@@ -124,20 +168,56 @@ function animator.newKeyframe(ani, p, elementID, xpos, ypos, angle, xscale, ysca
     }
     -- Apply to Ani
     ani.keyframes[elementID][#ani.keyframes[elementID] + 1] = keyframe
-    animator.sortKeyframes(elementID)
+    animator.sortKeyframes(ani, elementID)
     return keyframe
 end
 
+
+
+
+
+
+-- Checks the images folder within the skeleton's assigned directory and reloads any images that weren't
+-- previously loaded
+function animator.refreshImages(skel)
+    local files = getListOfFiles(skel.path .. "/images")
+    for i = 1,#files do
+        local file = string.lower(files[i]) 
+        if not skel.imageList[file] then
+            local ext = string.sub(file, -4)
+            if ext == ".png" or ext == ".jpg" or ext == ".bmp" then
+                animator.addImageFile(skel, file)
+            end
+        end
+    end
+end
+
+-- adds a single image file to the skeleton's image list and loads it
+function animator.addImageFile(skel, file)
+    local fullPath = skel.path .. "/images/" .. file
+    skel.imageList[file] = love.graphics.newImage(fullPath)
+end 
+
+
+function animator.setBone(bone, x, y, angle, drawOverParent)
+    bone.x = x
+    bone.y = y
+    if angle then bone.angle = angle end
+    if drawOverParent ~= nil then bone.drawOverParent = drawOverParent end
+end
+
+
 -- Sorts keyframes of a bone or image according to their position within the timeline
-function ani.sortKeyframes(id)
+function animator.sortKeyframes(ani, id)
     local list = ani.keyframes[id]
     table.sort(list, function(a,b) return a.p < b.p end)
 end
 
 
-function animator.getTimedPose(ani, p)
+-- Applies an animation with a given timestamp to a pose
+function animator.applyAnimation(pose, ani, p)
     -- Create new Pose to store bone and image transformations
-    local pose = animator.newPose(ani.skeleton)
+    local pose = animator.newPose(ani.skel)
     -- Apply Animation based on keyframes
     function applyToPose(element)
         local keyframes = ani.keyframes[element.id]
@@ -149,7 +229,7 @@ function animator.getTimedPose(ani, p)
         end    
     end
     -- Call apply function for all bones and images
-    for _,bone in ipairs(ani.skeleton.bones) do
+    for _,bone in ipairs(ani.skel.bones) do
         applyToPose(bone)
         for i = 1,#bone.images do
             applyToPose(bone.images[i])
@@ -160,6 +240,44 @@ function animator.getTimedPose(ani, p)
 end
 
 
+
+
+
+
+
+
+
+-- Draws a skeleton with the given pose and transformations
+function animator.drawPose(pose, x, y, angle, scalex, scaley, alpha)
+    animator.applyPose(pose)
+    animator.drawSkeleton(pose.skel, x, y, angle, scalex, scaley, alpha)
+end
+
+-- Applies a given pose to its skeleton by applying all bones
+function animator.applyPose(pose)
+    for id,element in ipairs(pose.skel.elementMap) do
+        -- values stored this way: {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
+        local values = pose.state[id]
+        if element.tp == "bone" then
+            -- Bone
+            element.x = values[1]
+            element.y = values[2]
+            element.angle = values[3]
+            element.alpha = values[4]
+        else
+            -- Image
+            element.x = values[1]
+            element.y = values[2]
+            element.angle = values[3]
+            element.alpha = values[4]
+            element.scaleX = values[5]
+            element.scaleY = values[6]
+        end
+    end
+end
+
+-- Draws the skeleton with given transformations in its current state -- usually you should call drawPose instead
+-- as poses describe a well defined state the skeleton is in
 function animator.drawSkeleton(skel, x, y, angle, scalex, scaley, alpha)
     -- Default Values
     angle = angle or 0
@@ -182,6 +300,8 @@ function animator.drawSkeleton(skel, x, y, angle, scalex, scaley, alpha)
     end
 end
 
+
+-- called by animator.drawSkeleton, should not be called manually
 function animator.drawBone(bone)
     -- Update values
     local p = bone.parent
@@ -210,9 +330,11 @@ function animator.drawBone(bone)
     end
 end
 
+
+-- called by animator.drawSkeleton, should not be called manually
 function animator.drawImage(img)
     -- Update
-    local image = animator.imageList[img.name].image
+    local image = img.skel.imageList[img.name].image
     local bone = img.bone
     -- Draw
     love.graphics.setColor(255,255,255, 255*bone.__alpha * img.alpha)
@@ -229,7 +351,33 @@ function animator.drawImage(img)
 end
 
 
+-- always call animator.drawSkeleton() beforehand to make sure all bone transformations are
+-- updated and propagated accordingly!
+function animator.drawDebugSkeleton(skel)
+    local bone = skel.rootChild
+    -- Recursive Drawing
+    for i = 1,#bone.childs do
+        animator.drawDebugBone(bone.childs[i])
+    end
+end
 
+function animator.drawDebugBone(bone)
+    -- Children  
+    for i = 1,#bone.childs do
+        animator.drawBone(bone.childs[i])
+    end
+    -- Itself
+    animator.drawDebugTriangle(bone.__x, bone.__y, bone.__angle, bone.length)
+end
 
-
-
+function animator.drawDebugTriangle(x, y, angle, length)
+    local angle2 = angle + animator.piBy2
+    local length2 = 6
+    -- Get Triangle Coordinates
+    local x1,y1 = x + length2*math.sin(angle2), y - length2*math.cos(angle2)
+    local x2,y2 = 2*x-x1, 2*y-y1
+    local x3,y3 = x + length*math.sin(angle), y - length*math.cos(angle)
+    -- Draw Triangle
+    love.graphics.setColor(0,255,0,255)
+    love.graphics.triangle("line", x1,y1, x2,y2, x3,y3)
+end
