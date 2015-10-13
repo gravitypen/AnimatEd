@@ -36,10 +36,14 @@ end
 -- Poses are current configurations of a specific skeleton; they've got a state list, assigning a list of transformations to each bone or image
 -- transformation list contains a list of values which will be assigned to an attribute (like x, y, angle, scale..) 
 function animator.newPose(skel)
-    local pose = {}
-    for id,element in ipairs(skel.elementMap) do
+    local pose = {
+        skel = skel, 
+        state = {}
+    }
+    for id,element in pairs(skel.elementMap) do
         pose.state[id] = {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
     end
+    return pose
 end
 
 
@@ -47,21 +51,23 @@ end
 -- Bones are invisible elements of a skeleton and are usually bound to other bones (i.e. have one parent and 0..n children)
 -- Bones can be animated using animations and keyframes, affecting position, rotation and alpha
 function animator.newBone(name, parent)
-    if parent.tp ~= "bone" and parent.rootNode then parent = parent.rootNode end
+    --print("Adding ".. name .. " to " .. parent.name)
+    local skel
+    if parent.tp ~= "bone" and parent.rootChild then parent = parent.rootChild end
     if parent.tp == "bone" then
         -- Child of other Node
-        parent.childs[#parent.childs+1] = node
-        node.skel = parent.skel
+        skel = parent.skel
     else
         -- is Root Node
-        node.skel = parent
+        skel = parent
     end
-    node.skel.boneCount = node.skel.boneCount + 1
+    skel.boneCount = skel.boneCount + 1
     -- Create Bone
     local node = {
         tp="bone",
+        skel=skel,
         name=name, 
-        id="b" .. node.skel.boneCount,
+        id="b" .. skel.boneCount,
         parent=parent, 
         images={}, 
         childs={}, 
@@ -78,11 +84,14 @@ function animator.newBone(name, parent)
         y=0, 
         alpha = 1.0,
         angle = 0,
-        length = 64, --doesn't affect anything, just for editor/debug rendering
+        length = 40, --doesn't affect anything, just for editor/debug rendering
         -- base system for children
-        baseDX = 1.0, 
-        baseDY = 1.0
+        baseRx = 1.0, -- "right" vector 
+        baseRy = 0.0,
+        baseFx = 0.0, -- "forward" vector
+        baseFy = 1.0
     }
+    if parent.tp == "bone" then parent.childs[#parent.childs+1] = node end
     node.skel.elementMap[node.id] = node
     return node
 end
@@ -99,7 +108,7 @@ function animator.newImage(imgName, bone)
     local img = {
         tp="img",
         name=imgName, 
-        id = "i" .. bone.skel.imgCount
+        id = "i" .. bone.skel.imgCount,
         bone=bone, 
         skel=bone.skel,
         scaleX=1.0, 
@@ -113,6 +122,7 @@ function animator.newImage(imgName, bone)
     }
     -- Append to bone
     bone.images[#bone.images+1] = img
+    print("Added image " .. imgName .. " to " .. bone.name)
     img.skel.elementMap[img.id] = img
     return img
 end
@@ -131,11 +141,8 @@ function animator.newAnimation(name, skel)
         keyframes = {}
     }
     -- Keyframe List per Bone and Image Instance
-    for b = 1,#skel.bones do
-        keyframes[skel.bones[b].id] = {}
-        for i = 1,#skell.bones[b].images do
-            keyframes[skell.bones[b].images[i].id] = {}
-        end
+    for id,element in pairs(skel.elementMap) do
+        ani.keyframes[id] = {}
     end
     return ani
 end
@@ -180,7 +187,8 @@ end
 -- Checks the images folder within the skeleton's assigned directory and reloads any images that weren't
 -- previously loaded
 function animator.refreshImages(skel)
-    local files = getListOfFiles(skel.path .. "/images")
+    if true then return end -- integrate love file system and replace getListOfFiles with something appropriate
+    local files = getListOfFiles(skel.projectPath .. "/images")
     for i = 1,#files do
         local file = string.lower(files[i]) 
         if not skel.imageList[file] then
@@ -194,14 +202,14 @@ end
 
 -- adds a single image file to the skeleton's image list and loads it
 function animator.addImageFile(skel, file)
-    local fullPath = skel.path .. "/images/" .. file
+    local fullPath = skel.projectPath .. "/images/" .. file
     skel.imageList[file] = love.graphics.newImage(fullPath)
 end 
 
 
 function animator.setBone(bone, x, y, angle, drawOverParent)
-    bone.x = x
-    bone.y = y
+    if x then bone.x = x end
+    if y then bone.y = y end
     if angle then bone.angle = angle end
     if drawOverParent ~= nil then bone.drawOverParent = drawOverParent end
 end
@@ -211,6 +219,13 @@ end
 function animator.sortKeyframes(ani, id)
     local list = ani.keyframes[id]
     table.sort(list, function(a,b) return a.p < b.p end)
+end
+
+function animator.getBoneByName(skel, name)
+    for id,element in pairs(skel.elementMap) do
+        if element.name == name then return element end
+    end
+    return nil
 end
 
 
@@ -255,7 +270,7 @@ end
 
 -- Applies a given pose to its skeleton by applying all bones
 function animator.applyPose(pose)
-    for id,element in ipairs(pose.skel.elementMap) do
+    for id,element in pairs(pose.skel.elementMap) do
         -- values stored this way: {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
         local values = pose.state[id]
         if element.tp == "bone" then
@@ -292,21 +307,25 @@ function animator.drawSkeleton(skel, x, y, angle, scalex, scaley, alpha)
     bone.__alpha = alpha
     bone.__scX = scalex
     bone.__scY = scaley
-    bone.baseDX = scalex * math.cos(angle) - scaley * math.sin(angle)
-    bone.baseDY = scalex * math.sin(angle) + scaley * math.cos(angle)
+    local bx = scalex
+    local by = scaley
+    local c = math.cos(-angle)
+    local s = math.sin(-angle)
+    bone.baseRx = scalex * c
+    bone.baseRy = -scalex * s
+    bone.baseFx = scaley * s
+    bone.baseFy = -scaley * c
     -- Recursive Drawing
     for i = 1,#bone.childs do
         animator.drawBone(bone.childs[i])
     end
 end
 
-
--- called by animator.drawSkeleton, should not be called manually
-function animator.drawBone(bone)
+function animator.updateBone(bone)
     -- Update values
     local p = bone.parent
-    bone.__x = p.__x + bone.x * p.baseDX
-    bone.__y = p.__y + bone.y * p.baseDY
+    bone.__x = p.__x + bone.x * p.baseRx + bone.y * p.baseFx
+    bone.__y = p.__y + bone.x * p.baseRy + bone.y * p.baseFy
     bone.__angle = p.__angle + bone.angle
     bone.__alpha = p.__alpha * bone.alpha
     bone.__scX = p.__scX
@@ -314,8 +333,16 @@ function animator.drawBone(bone)
     -- Rotate Base
     local s = math.sin(bone.angle)
     local c = math.cos(bone.angle)
-    bone.baseDX = c * p.baseDX - s * p.baseDY
-    bone.baseDY = s * p.baseDX + c * p.baseDY
+    bone.baseRx = c * p.baseRx - s * p.baseRy
+    bone.baseRy = s * p.baseRx + c * p.baseRy
+    bone.baseFx = c * p.baseFx - s * p.baseFy
+    bone.baseFy = s * p.baseFx + c * p.baseFy
+end
+
+-- called by animator.drawSkeleton, should not be called manually
+function animator.drawBone(bone)
+    -- Update Transformations
+    animator.updateBone(bone)
     -- Children under bone    
     for i = 1,#bone.childs do
         if not bone.childs[i].drawOverParent then animator.drawBone(bone.childs[i]) end
@@ -351,7 +378,7 @@ function animator.drawImage(img)
 end
 
 
--- always call animator.drawSkeleton() beforehand to make sure all bone transformations are
+-- always call animator.drawSkeleton() (or drawPose()) beforehand to make sure all bone transformations are
 -- updated and propagated accordingly!
 function animator.drawDebugSkeleton(skel)
     local bone = skel.rootChild
@@ -364,9 +391,10 @@ end
 function animator.drawDebugBone(bone)
     -- Children  
     for i = 1,#bone.childs do
-        animator.drawBone(bone.childs[i])
+        animator.drawDebugBone(bone.childs[i])
     end
     -- Itself
+    --print("Drawing " .. bone.name .. " to " .. bone.__x .. "," .. bone.__y)
     animator.drawDebugTriangle(bone.__x, bone.__y, bone.__angle, bone.length)
 end
 
@@ -379,5 +407,5 @@ function animator.drawDebugTriangle(x, y, angle, length)
     local x3,y3 = x + length*math.sin(angle), y - length*math.cos(angle)
     -- Draw Triangle
     love.graphics.setColor(0,255,0,255)
-    love.graphics.triangle("line", x1,y1, x2,y2, x3,y3)
+    love.graphics.polygon("line", x1,y1, x2,y2, x3,y3)
 end

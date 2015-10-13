@@ -1,12 +1,14 @@
 
 require "animator"
-require "cuveEditor"
+require "curveEditor"
 require "test"
+require "conf"
 
 
 function love.load()
     curveEditor.init()
     animator.load()
+    test.init()
 end
 
 
@@ -30,14 +32,15 @@ end
 
 
 function love.draw()
-    curveEditor.draw()
+    --curveEditor.draw()
+    test.draw()
 end
 
 
 
 
 function love.update()
-
+	test.update()
 end
 
 
