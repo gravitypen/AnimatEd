@@ -8,6 +8,8 @@ function animator.load()
     animator.pi = math.pi
     animator.piTimes2 = math.pi*2.0
     animator.piBy2 = math.pi*0.5
+    animator.newestBone = nil
+    animator.newestImage = nil
 end
 
 
@@ -84,6 +86,8 @@ function animator.newBone(name, parent)
         y=0, 
         alpha = 1.0,
         angle = 0,
+        scaleX = 1.0,
+        scaleY = 1.0,
         length = 40, --doesn't affect anything, just for editor/debug rendering
         -- base system for children
         baseRx = 1.0, -- "right" vector 
@@ -93,6 +97,7 @@ function animator.newBone(name, parent)
     }
     if parent.tp == "bone" then parent.childs[#parent.childs+1] = node end
     node.skel.elementMap[node.id] = node
+    animator.newestBone = node
     return node
 end
 
@@ -124,6 +129,7 @@ function animator.newImage(imgName, bone)
     bone.images[#bone.images+1] = img
     print("Added image " .. imgName .. " to " .. bone.name)
     img.skel.elementMap[img.id] = img
+    animator.newestImage = img
     return img
 end
 
@@ -152,7 +158,8 @@ end
 -- Keyframes are part of an animation and bound to a single bone, they're used to animate one or more 
 -- attributes of that bone; when using nil values for attributes, they are ignored in this keyframe and
 -- instead interpolated between different, appropriate keyframes
-function animator.newKeyframe(ani, p, elementID, xpos, ypos, angle, xscale, yscale, alpha)
+function animator.newKeyframe(ani, p, elementID, interpolation, xpos, ypos, angle, xscale, yscale, alpha)
+    interpolation = interpolation or "linear"
     local element = nil
     if type(elementID) == "string" then
         element = ani.skel.elementMap[elementID]
@@ -166,6 +173,7 @@ function animator.newKeyframe(ani, p, elementID, xpos, ypos, angle, xscale, ysca
         p = p,
         elementID = elementID,
         element = element,
+        interpolation = interpolation,
         x = xpos,
         y = ypos,
         angle = angle,
@@ -173,11 +181,23 @@ function animator.newKeyframe(ani, p, elementID, xpos, ypos, angle, xscale, ysca
         yscale = yscale,
         alpha = alpha
     }
+    -- list format: {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
+    keyframe[1] = xpos
+    keyframe[2] = ypos
+    keyframe[3] = angle
+    keyframe[4] = alpha
+    keyframe[5] = xscale
+    keyframe[6] = yscale
     -- Apply to Ani
     ani.keyframes[elementID][#ani.keyframes[elementID] + 1] = keyframe
+    print("Added keyframe to ani, bone " .. elementID .. " now has " .. #ani.keyframes[elementID] .. " new one included")
     animator.sortKeyframes(ani, elementID)
     return keyframe
 end
+
+
+
+
 
 
 
@@ -204,15 +224,48 @@ end
 function animator.addImageFile(skel, file)
     local fullPath = skel.projectPath .. "/images/" .. file
     skel.imageList[file] = love.graphics.newImage(fullPath)
+    print("Loaded image '" .. file .. "' from " .. fullPath)
 end 
 
 
+
+function animator.setPoseBone(pose, bone, x, y, angle, alpha)
+    -- list format: {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
+    local list = pose.state[bone.id]
+    if x then list[1] = x end
+    if y then list[2] = y end
+    if angle then list[3] = angle end
+    if alpha then list[4] = alpha end
+end
+
+function animator.setPoseImage(pose, image, x, y, angle, scx, scy, alpha) 
+    local list = pose.state[image.id]
+    if x then list[1] = x end
+    if y then list[2] = y end
+    if angle then list[3] = angle end
+    if alpha then list[4] = alpha end
+    if scx then list[5] = scx end
+    if scy == true then scy = scx end
+    if scy then list[6] = scy end
+end
+
 function animator.setBone(bone, x, y, angle, drawOverParent)
+    if not bone then bone = animator.newestBone end
     if x then bone.x = x end
     if y then bone.y = y end
     if angle then bone.angle = angle end
     if drawOverParent ~= nil then bone.drawOverParent = drawOverParent end
 end
+
+function animator.setImage(img, x, y, angle, scx, scy)
+    if not img then img = animator.newestImage end
+    if x then img.x = x end
+    if y then img.y = y end
+    if angle then img.angle = angle end
+    if scx then img.scaleX = scx end
+    if scy == true then scy = scx end
+    if scy then img.scaleY = scy end
+end 
 
 
 -- Sorts keyframes of a bone or image according to their position within the timeline
@@ -229,32 +282,112 @@ function animator.getBoneByName(skel, name)
 end
 
 
+
+
+
+
+
+
+
 -- Applies an animation with a given timestamp to a pose
 function animator.applyAnimation(pose, ani, p)
-    -- Create new Pose to store bone and image transformations
-    local pose = animator.newPose(ani.skel)
+
+    function getState(keyframes, attr)
+        local affectingKeyframes = {}
+        -- Find subset of keyframes that influence current attribute
+        for i = 1,#keyframes do
+            if keyframes[i][attr] ~= nil then affectingKeyframes[#affectingKeyframes + 1] = keyframes[i] end
+        end
+        if love.keyboard.isDown("lctrl") then print("  " .. attr .. "-affecting Keyframes: " .. #affectingKeyframes) end
+        -- Blend between affecting keyframes
+        if #affectingKeyframes <= 1 then
+            -- exactly one keyframe -> apply attribute
+            if #affectingKeyframes == 1 then
+                return affectingKeyframes[1][attr]
+            end
+        else
+            -- multiple keyframes -> find those that surround p
+            local iR = 0
+            for i = 1,#affectingKeyframes do
+                if affectingKeyframes[i].p >= p then iR = i; break end
+            end
+            local iL
+            if iR == 0 then 
+                -- p > highest p of all affecting keyframes -> take rightmost keyframe
+                iR = #affectingKeyframes
+                iL = iR
+            else
+                -- suitable index found
+                iL = iR - 1
+                if iL < 1 then iL = 1 end --avoid out of bounds error
+            end
+            -- Interpolate
+            if iL == iR then
+                -- no interpolation required
+                return affectingKeyframe[iL][attr]
+            else
+                -- Interpolate between both keyframes
+                local blend = (p - affectingKeyframes[iL].p)/(affectingKeyframes[iR].p - affectingKeyframes[iL].p)
+                return animator.interpolate(affectingKeyframes[iL].interpolation, affectingKeyframes[iL][attr], affectingKeyframes[iR][attr], blend)
+            end
+        end
+        -- no keyframe at all that influences attribute -> don't change attribute
+        return nil
+    end
+
     -- Apply Animation based on keyframes
     function applyToPose(element)
         local keyframes = ani.keyframes[element.id]
-        -- Find near keyframes
-        if #keyframes == 0 then
-            -- this bone is not animated
-        elseif #keyframes == 1 then
-        else
-        end    
+        -- Apply all attributes
+        local poseState = pose.state[element.id]
+        if love.keyboard.isDown("lctrl") then print("\nUpdating element " .. element.id .. " with " .. #poseState .. " attributes, keyframes: " .. #keyframes) end
+        for i = 1,#poseState do
+            local newValue = getState(keyframes, i)
+            if newValue ~= nil then poseState[i] = newValue; end
+        end  
     end
+
     -- Call apply function for all bones and images
-    for _,bone in ipairs(ani.skel.bones) do
-        applyToPose(bone)
-        for i = 1,#bone.images do
-            applyToPose(bone.images[i])
-        end
+    for id,element in pairs(ani.skel.elementMap) do
+        applyToPose(element)
     end
+
     -- Return
     return pose
 end
 
-
+function animator.interpolate(interpolation, v1, v2, p)
+    local v = v1
+    if type(interpolation) == "string" then
+        -- one of several templates
+        if interpolation == "step" then
+            v = (p < 0.5) and v1 or v2
+        elseif interpolation == "floor" then
+            v = (p < 1.0) and v1 or v2
+        elseif interpolation == "linear" then
+            v = p*v2 + (1.0-p)*v1
+        elseif interpolation == "cos" then
+            p = 0.5 - 0.5*math.cos(math.pi*p)
+            v = p*v2 + (1.0-p)*v1
+        elseif interpolation == "sqr" then
+            p = p*p
+            v = p*v2 + (1.0-p)*v1
+        elseif interpolation == "sqrt" then
+            p = math.sqrt(p)
+            v = p*v2 + (1.0-p)*v1
+        elseif interpolation == "sphere" then
+            p = math.sqrt(2*x - x*x)
+            v = p*v2 + (1.0-p)*v1
+        elseif interpolation == "invertsphere" then
+            p = 1.0 - math.sqrt(1 - p*p)
+            v = p*v2 + (1.0-p)*v1
+        end        
+    else
+        -- custom interpolation (using curveEditor)
+        v = curveEditor.interpolate(p, {interpolation[1], interpolation[2]}, {interpolation[3], interpolation[4]})
+    end
+    return v
+end
 
 
 
@@ -328,15 +461,15 @@ function animator.updateBone(bone)
     bone.__y = p.__y + bone.x * p.baseRy + bone.y * p.baseFy
     bone.__angle = p.__angle + bone.angle
     bone.__alpha = p.__alpha * bone.alpha
-    bone.__scX = p.__scX
-    bone.__scY = p.__scY
+    bone.__scX = p.__scX * bone.scaleX
+    bone.__scY = p.__scY * bone.scaleY
     -- Rotate Base
     local s = math.sin(bone.angle)
     local c = math.cos(bone.angle)
-    bone.baseRx = c * p.baseRx - s * p.baseRy
-    bone.baseRy = s * p.baseRx + c * p.baseRy
-    bone.baseFx = c * p.baseFx - s * p.baseFy
-    bone.baseFy = s * p.baseFx + c * p.baseFy
+    bone.baseRx = bone.scaleX * (c * p.baseRx - s * p.baseRy)
+    bone.baseRy = bone.scaleX * (s * p.baseRx + c * p.baseRy)
+    bone.baseFx = bone.scaleY * (c * p.baseFx - s * p.baseFy)
+    bone.baseFy = bone.scaleY * (s * p.baseFx + c * p.baseFy)
 end
 
 -- called by animator.drawSkeleton, should not be called manually
@@ -361,14 +494,14 @@ end
 -- called by animator.drawSkeleton, should not be called manually
 function animator.drawImage(img)
     -- Update
-    local image = img.skel.imageList[img.name].image
+    local image = img.skel.imageList[img.name]
     local bone = img.bone
     -- Draw
     love.graphics.setColor(255,255,255, 255*bone.__alpha * img.alpha)
     love.graphics.draw(
         image, 
-        bone.__x + img.x * bone.baseDX, 
-        bone.__y + img.y * bone.baseDY, 
+        bone.__x + img.x * bone.baseRx + img.y * bone.baseFx, 
+        bone.__y + img.x * bone.baseRy + img.y * bone.baseFy, 
         bone.__angle + img.angle, 
         img.scaleX*bone.__scX, 
         img.scaleY*bone.__scY, 
@@ -400,12 +533,12 @@ end
 
 function animator.drawDebugTriangle(x, y, angle, length)
     local angle2 = angle + animator.piBy2
-    local length2 = 6
+    local length2 = 4
     -- Get Triangle Coordinates
     local x1,y1 = x + length2*math.sin(angle2), y - length2*math.cos(angle2)
     local x2,y2 = 2*x-x1, 2*y-y1
     local x3,y3 = x + length*math.sin(angle), y - length*math.cos(angle)
     -- Draw Triangle
-    love.graphics.setColor(0,255,0,255)
+    love.graphics.setColor(0,255,0,128)
     love.graphics.polygon("line", x1,y1, x2,y2, x3,y3)
 end
