@@ -1,5 +1,6 @@
 
 require "animator"
+require "animatorBlender"
 require "curveEditor"
 require "test"
 require "conf"

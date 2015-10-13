@@ -1,5 +1,6 @@
 
 require "animator"
+require "animatorBlender"
 
 
 test = {}
@@ -73,6 +74,10 @@ function test.init()
 		animator.newKeyframe(ani2, 0.0, leg, "linear", nil, nil, degree(140), nil, nil, nil)
 		animator.newKeyframe(ani2, 0.45, leg, "linear", nil, nil, degree(190), nil, nil, nil)
 		animator.newKeyframe(ani2, 1.0, leg, "", nil, nil, degree(140), nil, nil, nil)
+
+
+	-- Blender
+	local blender = blender.newAniBlender(skel, ani)
 
 
 	-- Store for later use
