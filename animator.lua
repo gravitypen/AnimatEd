@@ -144,11 +144,13 @@ function animator.newAnimation(name, skel)
         name = name,
         skel = skel,
         duration = 1.0,
-        keyframes = {}
+        keyframes = {}        
     }
     -- Keyframe List per Bone and Image Instance
     for id,element in pairs(skel.elementMap) do
-        ani.keyframes[id] = {}
+        ani.keyframes[id] = {
+            affects = {false, false, false, false, false, false} -- denotes, which attributes the keyframes of an animation affect (x, y, angle, alpha, xsc, ysc)
+        }
     end
     return ani
 end
@@ -188,6 +190,14 @@ function animator.newKeyframe(ani, p, elementID, interpolation, xpos, ypos, angl
     keyframe[4] = alpha
     keyframe[5] = xscale
     keyframe[6] = yscale
+    -- Tell Bone related Keyframe list which attributes the animation affects
+    local list = ani.keyframes[elementID]
+    if xpos then list.affects[1] = true end
+    if ypos then list.affects[2] = true end
+    if angle then list.affects[3] = true end
+    if alpha then list.affects[4] = true end
+    if xscale then list.affects[5] = true end
+    if yscale then list.affects[6] = true end
     -- Apply to Ani
     ani.keyframes[elementID][#ani.keyframes[elementID] + 1] = keyframe
     print("Added keyframe to ani, bone " .. elementID .. " now has " .. #ani.keyframes[elementID] .. " new one included")

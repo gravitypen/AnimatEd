@@ -77,7 +77,7 @@ function test.init()
 
 
 	-- Blender
-	local blender = blender.newAniBlender(skel, ani)
+	local blender = blender.newAniBlender(pose, ani)
 
 
 	-- Store for later use

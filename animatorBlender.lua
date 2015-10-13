@@ -10,9 +10,11 @@ end
 
 
 -- Creates an AnimationBlender for a given skeleton
-function blender.newAniBlender(skel, defaultAni)
+function blender.newAniBlender(pose, defaultAni)
 	local b = {
-		skel = skel,
+		skel = pose.skel,
+		pose = pose,
+		tempPose = animator.newPose(pose.skel),
 		anis = {}, -- current animations, will always contain whatever animation is currently being executed
 		defaultAni = defaultAni
 	}
@@ -181,14 +183,33 @@ function blender.update(aniBlender, applyToPose)
 		end
 	end
 
-	-- Blend between multiple animations
-	if #aniBlender.anis > 1 then
-		-- ...
+	-- Blend between multiple animations and apply them to Pose
+	if #aniBlender.anis >= 1 then
+		-- For each running animation, first apply it to tempPose, then blend changed bone values for actual Pose
+		for i = 1,#aniBlender.anis do
+			-- Apply Animation
+			animator.applyAnimation(aniBlender.tempPose, aniBlender.anis[i].animation, aniBlender.anis[i].progress)
+			-- Blend into actual Pose
+			for id,element in aniBlender.anis[i].animation.keyframes do
+				-- Get list of keyframes for a single bone or image that is affected by this animation
+				local keyframes = aniBlender.anis[i].animation.keyframes[id]
+				-- Only update affected attributes
+				local poseState = aniBlender.pose.state[id]
+				local tempPoseState = aniBlender.tempPose.state[id]
+				for k = 1,keyframes.affects do
+					if keyframes.affects[k] then
+						if aniBlender.anis[i].opacity >= 1.0 then
+							-- Simply apply value
+							poseState[k] = tempPoseState[k]
+						else
+							-- Blend onto existing value
+							poseState[k] = aniBlender.anis[i].opacity*tempPoseState[k] + (1.0 - aniBlender.anis[i].opacity)*poseState[k]
+						end
+					end
+				end
+			end
+		end
 	end
 
-	-- Apply Animation to Pose
-	if applyToPose then
-		-- ...
-	end
 
 end
