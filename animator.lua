@@ -73,7 +73,7 @@ function animator.newBone(name, parent)
         parent=parent, 
         images={}, 
         childs={}, 
-        drawOverParent = true,
+        drawOverParent = false,
         -- stored values
         __x = 0, -- absolute position after applying (x,y) to base values provided by parent
         __y = 0,
@@ -369,6 +369,10 @@ function animator.interpolate(interpolation, v1, v2, p)
         elseif interpolation == "cos" then
             p = 0.5 - 0.5*math.cos(math.pi*p)
             v = p*v2 + (1.0-p)*v1
+        elseif interpolation == "cos2" then
+            p = 0.5 - 0.5*math.cos(math.pi*p)
+            p = 0.5 - 0.5*math.cos(math.pi*p)
+            v = p*v2 + (1.0-p)*v1
         elseif interpolation == "sqr" then
             p = p*p
             v = p*v2 + (1.0-p)*v1
@@ -376,9 +380,9 @@ function animator.interpolate(interpolation, v1, v2, p)
             p = math.sqrt(p)
             v = p*v2 + (1.0-p)*v1
         elseif interpolation == "sphere" then
-            p = math.sqrt(2*x - x*x)
+            p = math.sqrt(2*p - p*p)
             v = p*v2 + (1.0-p)*v1
-        elseif interpolation == "invertsphere" then
+        elseif interpolation == "invsphere" then
             p = 1.0 - math.sqrt(1 - p*p)
             v = p*v2 + (1.0-p)*v1
         end        
