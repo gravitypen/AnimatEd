@@ -43,10 +43,6 @@ do
         local invT = 1.0 - t
         return startVel[1] * 3.0 * (1 - 4*t + 3*t*t) + endVel[1] * 3.0 * (2*t - 3*t*t) + 1.0 * 3*t*t
     end
-
-    function curveEditor.interpolate(t, startVel, endVel)
-        return interpolate(t, startVel, endVel)
-    end
    
     local function interpolate(t, startVel, endVel)
         local out = t
@@ -54,6 +50,10 @@ do
             out = out - (bezierX(out, startVel, endVel) - t) / bezierXDel(out, startVel, endVel)
         end
         return bezierY(out, startVel, endVel)
+    end
+
+    function curveEditor.interpolate(t, startVel, endVel)
+        return interpolate(t, startVel, endVel)
     end
    
     function curveEditor.draw()

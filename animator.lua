@@ -410,9 +410,14 @@ end
 
 
 -- Draws a skeleton with the given pose and transformations
-function animator.drawPose(pose, x, y, angle, scalex, scaley, alpha)
+function animator.drawPose(pose, x, y, angle, scalex, scaley, alpha, debug)
+    love.graphics.push()
+    love.graphics.translate(x,y)
+    love.graphics.scale(scalex, scaley)
+    love.graphics.rotate(angle)
     animator.applyPose(pose)
-    animator.drawSkeleton(pose.skel, x, y, angle, scalex, scaley, alpha)
+    animator.drawSkeleton(pose.skel, 0,0, 0.0, 1.0, 1.0, alpha, debug) --x, y, angle, scalex, scaley, alpha)
+    love.graphics.pop()
 end
 
 -- Applies a given pose to its skeleton by applying all bones
@@ -440,7 +445,7 @@ end
 
 -- Draws the skeleton with given transformations in its current state -- usually you should call drawPose instead
 -- as poses describe a well defined state the skeleton is in
-function animator.drawSkeleton(skel, x, y, angle, scalex, scaley, alpha)
+function animator.drawSkeleton(skel, x, y, angle, scalex, scaley, alpha, debug)
     -- Default Values
     angle = angle or 0
     scalex = scalex or 1
@@ -466,22 +471,33 @@ function animator.drawSkeleton(skel, x, y, angle, scalex, scaley, alpha)
     for i = 1,#bone.childs do
         animator.drawBone(bone.childs[i])
     end
+    -- Debug Skeleton
+    if debug then animator.drawDebugSkeleton(skel) end
 end
 
 function animator.updateBone(bone)
     -- Update values
     local p = bone.parent
+    local angle = bone.angle
+    local scalex = bone.scalex
+    if bone.scaleX < 0.0 then 
+        angle = -angle 
+        scalex = -1.0
+    else
+        angle = angle
+        scalex = 1.0
+    end
     bone.__x = p.__x + bone.x * p.baseRx + bone.y * p.baseFx
     bone.__y = p.__y + bone.x * p.baseRy + bone.y * p.baseFy
-    bone.__angle = p.__angle + bone.angle
+    bone.__angle = p.__angle + angle
     bone.__alpha = p.__alpha * bone.alpha
-    bone.__scX = p.__scX * bone.scaleX
+    bone.__scX = p.__scX * scalex --bone.scaleX
     bone.__scY = p.__scY * bone.scaleY
     -- Rotate Base
-    local s = math.sin(bone.angle)
-    local c = math.cos(bone.angle)
-    bone.baseRx = bone.scaleX * (c * p.baseRx - s * p.baseRy)
-    bone.baseRy = bone.scaleX * (s * p.baseRx + c * p.baseRy)
+    local s = math.sin(angle)
+    local c = math.cos(angle)
+    bone.baseRx = scalex * (c * p.baseRx - s * p.baseRy)
+    bone.baseRy = scalex * (s * p.baseRx + c * p.baseRy)
     bone.baseFx = bone.scaleY * (c * p.baseFx - s * p.baseFy)
     bone.baseFy = bone.scaleY * (s * p.baseFx + c * p.baseFy)
 end
