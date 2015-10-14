@@ -29,14 +29,14 @@ function blender.playAni(aniBlender, ani, loops, priority, fadeInTime, speedFact
 	-- already running?
 	local index = 0
 	for i = 1,#aniBlender.anis do
-		if aniBlender.anis[i].animation == ani then index = i; return end
+		if aniBlender.anis[i].animation == ani then index = i; break end
 	end
 
 	if index > 0 then
 
 		-- ani already running, only update values
 		local a = aniBlender.anis[index]
-		a.loopsRemaining = loops
+		if loops then a.loopsRemaining = loops end
 		if fadeInTime then a.fadeStep = 1.0/fadeInTime end
 		if speedFactor then a.step = speedFactor/ani.duration end
 		if priority then a.priority = priority end
@@ -47,8 +47,9 @@ function blender.playAni(aniBlender, ani, loops, priority, fadeInTime, speedFact
 
 		-- ani not yet running, so add to list
 		loops = loops or 1
-		fadeInTime = fadeInTime or 0.2
+		fadeInTime = fadeInTime or 0.5
 		speedFactor = speedFactor or 1.0
+		priority = priority or 0
 		local aniObject = {
 			animation = ani,
 			loopsRemaining = loops,
@@ -164,7 +165,7 @@ function blender.update(aniBlender, applyToPose)
 				ani.progress = ani.progress - math.floor(ani.progress)
 				if ani.loopsRemaining <= 0 then
 					-- Animation has run out
-					ani.fadeStep = -2.0/blender.td
+					ani.fadeStep = -1.5*math.abs(ani.fadeStep) ---2.0/blender.td
 				end
 			else
 				-- Animation loops indefinitely, so simply reset progress
@@ -190,13 +191,13 @@ function blender.update(aniBlender, applyToPose)
 			-- Apply Animation
 			animator.applyAnimation(aniBlender.tempPose, aniBlender.anis[i].animation, aniBlender.anis[i].progress)
 			-- Blend into actual Pose
-			for id,element in aniBlender.anis[i].animation.keyframes do
+			for id,element in pairs(aniBlender.anis[i].animation.keyframes) do
 				-- Get list of keyframes for a single bone or image that is affected by this animation
 				local keyframes = aniBlender.anis[i].animation.keyframes[id]
 				-- Only update affected attributes
 				local poseState = aniBlender.pose.state[id]
 				local tempPoseState = aniBlender.tempPose.state[id]
-				for k = 1,keyframes.affects do
+				for k = 1,#keyframes.affects do
 					if keyframes.affects[k] then
 						if aniBlender.anis[i].opacity >= 1.0 then
 							-- Simply apply value
@@ -212,4 +213,15 @@ function blender.update(aniBlender, applyToPose)
 	end
 
 
+end
+
+
+
+
+function blender.debug(aniBlender)
+	local y = 0
+	for i = 1,#aniBlender.anis do
+		love.graphics.print(i .. ". " .. aniBlender.anis[i].animation.name .. ", " .. aniBlender.anis[i].loopsRemaining .. ", " .. math.floor(100*aniBlender.anis[i].progress), 0, y)
+		y = y + 20
+	end
 end

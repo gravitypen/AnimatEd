@@ -40,8 +40,8 @@ end
 
 
 
-function love.update()
-	test.update()
+function love.update(td)
+	test.update(td)
 end
 
 

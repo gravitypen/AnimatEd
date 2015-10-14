@@ -138,12 +138,12 @@ end
 -- An animation (e.g. "run", "idle", "attack", ...) defines the transformations for a skeleton within a certain fixed
 -- time frame; it contains a list of keyframes, each of which influences one or more attributes of a bone at a
 -- certain point in time
-function animator.newAnimation(name, skel)
+function animator.newAnimation(name, skel, duration)
     local ani = {
         tp="ani",
         name = name,
         skel = skel,
-        duration = 1.0,
+        duration = duration or 1.0,
         keyframes = {}        
     }
     -- Keyframe List per Bone and Image Instance
