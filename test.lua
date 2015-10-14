@@ -83,13 +83,13 @@ function test.init()
 			animator.newKeyframe(ani, 1.0, iTorso, "", 0, 20)
 	local ani2 = animator.newAnimation("Walk", skel, 0.7)
 		leg = animator.getBoneByName(skel, "Left Leg")
-		--animator.newKeyframe(ani2, 0.0, leg, {0.5,0.0, 0.5,1.0}, nil, nil, degree(220), nil, nil, nil)		
-		animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(220), nil, nil, nil)
-		animator.newKeyframe(ani2, 0.45, leg, "cos", nil, nil, degree(160), nil, nil, nil)
+		animator.newKeyframe(ani2, 0.0, leg, {0.0,0.3, 1.0,0.7}, nil, nil, degree(220), nil, nil, nil)		
+		--animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(220), nil, nil, nil)
+		animator.newKeyframe(ani2, 0.55, leg, "linear", nil, nil, degree(160), nil, nil, nil)
 		animator.newKeyframe(ani2, 1.0, leg, "", nil, nil, degree(220), nil, nil, nil)
 		leg = animator.getBoneByName(skel, "Right Leg")
-		animator.newKeyframe(ani2, 0.0, leg, "linear", nil, nil, degree(140), nil, nil, nil)
-		animator.newKeyframe(ani2, 0.45, leg, "linear", nil, nil, degree(190), nil, nil, nil)
+		animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(140), nil, nil, nil)
+		animator.newKeyframe(ani2, 0.45, leg, "cos", nil, nil, degree(190), nil, nil, nil)
 		animator.newKeyframe(ani2, 1.0, leg, "", nil, nil, degree(140), nil, nil, nil)
 
 
@@ -111,6 +111,7 @@ function test.init()
 	print("- - - - - - - - - - ")
 	animator.drawPose(test.pose, 400, 400, 0.0, 1.0, 1.0, 1.0)
 	animator.drawDebugSkeleton(test.skel, 400, 400, 0.0, 1.0, 1.0, 1.0)
+
 end
 
 
@@ -139,7 +140,6 @@ function test.draw()
 	--animator.drawSkeleton(test.skel, 400, 400, 0.0, scx, 1.0, 1.0)
 	-- Alternative Pose
 	animator.drawPose(test.pose2, 1100, 400, 0.0, scx*1.5, 1.5, 1.0, false)
-	animator.drawDebugSkeleton(test.skel)
 	love.graphics.setColor(255,255,255,255)
 	blender.debug(test.blender)
 	love.graphics.print("Press Space to trigger Run Animation, LShift to flip wolf, H to flip head", 400, 8)

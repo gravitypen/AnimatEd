@@ -398,7 +398,8 @@ function animator.interpolate(interpolation, v1, v2, p)
         end        
     else
         -- custom interpolation (using curveEditor)
-        v = curveEditor.interpolate(p, {interpolation[1], interpolation[2]}, {interpolation[3], interpolation[4]})
+        p = curveEditor.interpolate(p, {interpolation[1], interpolation[2]}, {interpolation[3], interpolation[4]})
+        v = p*v2 + (1.0-p)*v1
     end
     return v
 end
