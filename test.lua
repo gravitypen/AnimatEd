@@ -12,15 +12,15 @@ end
 
 function test.init()
 	-- Create Skeleton
-	local skel = animator.newSkeleton("Test Wolf", 'test/testSkeleton')
+	local skel = animator.newSkeleton("Test Wolf", 'D:/programming/love-0.9.2-win32/AnimatEd/test/testSkeleton')
 	-- Temporary, as file system access isn't integrated
-	animator.addImageFile(skel, "torso.png")
-	animator.addImageFile(skel, "head1.png")
-	animator.addImageFile(skel, "head2.png")
-	animator.addImageFile(skel, "arm1.png")
-	animator.addImageFile(skel, "arm2.png")
-	animator.addImageFile(skel, "foot.png")
-	animator.addImageFile(skel, "hand.png")
+	--animator.addImageFile(skel, "torso.png")
+	--animator.addImageFile(skel, "head1.png")
+	--animator.addImageFile(skel, "head2.png")
+	--animator.addImageFile(skel, "arm1.png")
+	--animator.addImageFile(skel, "arm2.png")
+	--animator.addImageFile(skel, "foot.png")
+	--animator.addImageFile(skel, "hand.png")
 
 	-- Add Bones and Images
 	local torso

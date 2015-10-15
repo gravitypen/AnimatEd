@@ -1,5 +1,8 @@
 
 
+require "lfs"
+
+
 animator = {}
 
 function animator.load()
@@ -217,10 +220,9 @@ end
 -- Checks the images folder within the skeleton's assigned directory and reloads any images that weren't
 -- previously loaded
 function animator.refreshImages(skel)
-    if true then return end -- integrate love file system and replace getListOfFiles with something appropriate
-    local files = getListOfFiles(skel.projectPath .. "/images")
-    for i = 1,#files do
-        local file = string.lower(files[i]) 
+    lfs.chdir(skel.projectPath .. "/images")
+    for originalFile in lfs.dir(".") do
+        local file = string.lower(originalFile) 
         if not skel.imageList[file] then
             local ext = string.sub(file, -4)
             if ext == ".png" or ext == ".jpg" or ext == ".bmp" then
@@ -232,11 +234,35 @@ end
 
 -- adds a single image file to the skeleton's image list and loads it
 function animator.addImageFile(skel, file)
-    local fullPath = skel.projectPath .. "/images/" .. file
-    skel.imageList[file] = love.graphics.newImage(fullPath)
+    --local fullPath = skel.projectPath .. "/images/" .. file
+    skel.imageList[file] = animator.loadImage(file) --love.graphics.newImage(fullPath)
     table.insert(skel.imageList, file)
-    print("Loaded image '" .. file .. "' from " .. fullPath)
+    print("Loaded image '" .. file .. "' with width " .. (skel.imageList[file]):getWidth()) --" from " .. fullPath)
 end 
+
+function animator.loadImage(path)
+    local attr, err = lfs.attributes(path)
+    if attr == nil then
+        gui.dialogNotice("Error", "Attributes of image file could not be checked - '" .. self.imagePath .. "': " .. err)
+        return nil
+    end
+    if attr.mode ~= "file" then
+        gui.dialogNotice("Error", "'" .. self.imagePath .. "' is not a file.")
+        return nil
+    end
+ 
+    local file = assert(io.open(path, "rb"))
+    local filedata = love.filesystem.newFileData(file:read("*all"), path)
+    file:close()
+ 
+    local status, ret = pcall(love.graphics.newImage, filedata)
+    if status == false then
+        gui.dialogNotice("Error", "Error while loading image: " .. ret)
+        return nil
+    else
+        return ret
+    end
+end
 
 
 
@@ -270,6 +296,7 @@ end
 
 function animator.setImage(img, x, y, angle, scx, scy)
     if not img then img = animator.newestImage end
+    if not img then print("Could not set image to " .. x .. "," .. y .. "," .. angle .. "," .. scx .. "," .. tostring(scy) .. " because no image has been created yet") return end
     if x then img.x = x end
     if y then img.y = y end
     if angle then img.angle = angle end
