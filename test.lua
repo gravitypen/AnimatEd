@@ -54,8 +54,8 @@ function test.init()
 	-- Create Animations
 	local ani = animator.newAnimation("Idle", skel, 1.6)
 		head = animator.getBoneByName(skel, "Head")
-			animator.newKeyframe(ani, 0.0, head, "sqrt", nil, nil, degree(-20), 1.0, 1.0, 1.0)
-			animator.newKeyframe(ani, 0.5, head, "sqrt", nil, nil,   degree(5), 1.0, 1.0, 1.0)
+			animator.newKeyframe(ani, 0.0, head, {0.5,-0.5, 0.5,1.5}, nil, nil, degree(-20), 1.0, 1.0, 1.0)
+			animator.newKeyframe(ani, 0.5, head, {0.5,-0.5, 0.5,1.5}, nil, nil,   degree(5), 1.0, 1.0, 1.0)
 			animator.newKeyframe(ani, 1.0, head, "", nil, nil, degree(-20), 1.0, 1.0, 1.0)
 		arm = animator.getBoneByName(skel, "Left Arm")
 			animator.newKeyframe(ani, 0.0, arm, "linear", nil, nil, degree(210))
@@ -77,20 +77,31 @@ function test.init()
 			animator.newKeyframe(ani, 0.0, leg, "sqrt", nil, nil, degree(150), 1.0, 1.0, 1.0)
 			animator.newKeyframe(ani, 0.5, leg, "sqrt", nil, nil,   degree(195), 1.0, 1.0, 1.0)
 			animator.newKeyframe(ani, 1.0, leg, "", nil, nil, degree(150), 1.0, 1.0, 1.0)
+		leg = animator.getBoneByName(skel, "Right Leg 2")
+			animator.newKeyframe(ani, 0.0, leg, "cos", nil, nil, degree(20), nil, nil, nil)
+		leg = animator.getBoneByName(skel, "Left Leg 2")
+			animator.newKeyframe(ani, 0.0, leg, "cos", nil, nil, degree(7), nil, nil, nil)
 		-- Torso Image animation
 			animator.newKeyframe(ani, 0.0, iTorso, "sqrt", 0, 20)
 			animator.newKeyframe(ani, 0.5, iTorso, "sqrt", 0, 25)
 			animator.newKeyframe(ani, 1.0, iTorso, "", 0, 20)
 	local ani2 = animator.newAnimation("Walk", skel, 0.7)
 		leg = animator.getBoneByName(skel, "Left Leg")
-		animator.newKeyframe(ani2, 0.0, leg, {0.0,0.3, 1.0,0.7}, nil, nil, degree(220), nil, nil, nil)		
-		--animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(220), nil, nil, nil)
-		animator.newKeyframe(ani2, 0.55, leg, "linear", nil, nil, degree(160), nil, nil, nil)
-		animator.newKeyframe(ani2, 1.0, leg, "", nil, nil, degree(220), nil, nil, nil)
+			animator.newKeyframe(ani2, 0.0, leg, {0.0,0.3, 1.0,0.7}, nil, nil, degree(240), nil, nil, nil)		
+			--animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(220), nil, nil, nil)
+			animator.newKeyframe(ani2, 0.55, leg, "linear", nil, nil, degree(130), nil, nil, nil)
+			animator.newKeyframe(ani2, 1.0, leg, "", nil, nil, degree(240), nil, nil, nil)
 		leg = animator.getBoneByName(skel, "Right Leg")
-		animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(140), nil, nil, nil)
-		animator.newKeyframe(ani2, 0.45, leg, "cos", nil, nil, degree(190), nil, nil, nil)
-		animator.newKeyframe(ani2, 1.0, leg, "", nil, nil, degree(140), nil, nil, nil)
+			animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(120), nil, nil, nil)
+			animator.newKeyframe(ani2, 0.45, leg, "cos", nil, nil, degree(220), nil, nil, nil)
+			animator.newKeyframe(ani2, 1.0, leg, "", nil, nil, degree(120), nil, nil, nil)
+		leg = animator.getBoneByName(skel, "Right Leg 2")
+			animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(70), nil, nil, nil)
+		leg = animator.getBoneByName(skel, "Left Leg 2")
+			animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(90), nil, nil, nil)
+			animator.newKeyframe(ani2, 0.5, leg, "cos", nil, nil, degree(40), nil, nil, nil)
+			animator.newKeyframe(ani2, 1.0, leg, "cos", nil, nil, degree(90), nil, nil, nil)
+
 
 
 	-- Blender
@@ -103,6 +114,7 @@ function test.init()
 	test.pose2 = animator.newPose(skel)
 	test.ani = ani
 	test.ani2 = ani2
+	test.root = skel.rootChild
 	test.arm = animator.getBoneByName(skel, "Right Arm")
 	test.leg = animator.getBoneByName(skel, "Left Leg")
 	test.leg2 = animator.getBoneByName(skel, "Left Foot")
@@ -135,12 +147,33 @@ function test.draw()
 	if love.keyboard.isDown("lshift") then scx = -1 else scx = 1 end
 	if love.keyboard.isDown("h") then animator.getBoneByName(test.skel, "Head").scaleX = -1.0 else animator.getBoneByName(test.skel, "Head").scaleX = 1.0 end
 	-- Note: Drawing Pose will overwrite all bone transformations previously applied, as they're fixed within the pose
-	animator.drawPose(test.pose, 400, 400, 0.0, scx*2, 2.0, 1.0, true)
+	animator.drawPose(test.pose, 400, 400, 0.0, scx*2, 2.0, 1.0, love.keyboard.isDown("d"))
 	-- drawSkeleton updates all bone transformations recursively and draws all images bound to bones of the skeleton
 	--animator.drawSkeleton(test.skel, 400, 400, 0.0, scx, 1.0, 1.0)
 	-- Alternative Pose
 	animator.drawPose(test.pose2, 1100, 400, 0.0, scx*1.5, 1.5, 1.0, false)
 	love.graphics.setColor(255,255,255,255)
 	blender.debug(test.blender)
-	love.graphics.print("Press Space to trigger Run Animation, LShift to flip wolf, H to flip head", 400, 8)
+	love.graphics.print("Press Space to trigger Run Animation, LShift to flip wolf, H to flip head, D for debug", 400, 8)
+
+	treeviewHandler.updateInput()
+	treeview(1,50,200,600, test.root.childs[1], 
+		function(e) return e.name end,
+		function(e) return (e.childs and e.childs[1]) or (e.images and e.images[1]) end,
+		function(e) 
+			if e.tp == "img" then
+				for i =1,#e.bone.images do
+					if e.bone.images[i] == e then return e.bone.images[i+1] end
+				end
+			else
+				for i=1,#e.parent.childs-1 do
+					if e.parent.childs[i] == e then return e.parent.childs[i+1] end
+				end
+				return e.parent.images[1]
+			end
+			return nil
+		end,
+		function(c,p) animator.reorderBones(c, p) end
+	)
+	listview(1400,50,200,600, test.skel.imageList)
 end

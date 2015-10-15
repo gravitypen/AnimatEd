@@ -4,6 +4,7 @@ require "animatorBlender"
 require "curveEditor"
 require "test"
 require "conf"
+require "treeview"
 
 
 function love.load()

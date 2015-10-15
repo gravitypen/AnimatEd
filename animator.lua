@@ -234,6 +234,7 @@ end
 function animator.addImageFile(skel, file)
     local fullPath = skel.projectPath .. "/images/" .. file
     skel.imageList[file] = love.graphics.newImage(fullPath)
+    table.insert(skel.imageList, file)
     print("Loaded image '" .. file .. "' from " .. fullPath)
 end 
 
@@ -291,6 +292,40 @@ function animator.getBoneByName(skel, name)
     return nil
 end
 
+function animator.reorderBones(bone, newParent)
+    if bone == newParent or newParent.tp == "img" then return end
+    if bone.tp == "img" then animator.reorderImage(bone, newParent) return end
+    print("Reordering Bone " .. bone.name .. " under " .. newParent.name)
+    -- Check whether newParent is sub node of bone
+    local tmp = newParent.parent
+    while tmp ~= nil and tmp ~= bone do tmp = tmp.parent end
+    if tmp == nil then
+        -- Actually Reorder
+        -- First remove bone from its parent
+        local oldParent = bone.parent
+        for i = 1,#oldParent.childs do if oldParent.childs[i] == bone then table.remove(oldParent.childs, i); break; end; end
+        -- Assign to new Parent
+        table.insert(newParent.childs, bone)
+        bone.parent = newParent
+        -- Retransform Bone to make sure it doesn't change orientation....?
+        -- ...
+    end 
+end
+
+function animator.reorderImage(img, newParent)
+    if img.tp ~= "img" or newParent.tp ~= "bone" then return end
+    print("Reordering " .. img.name .. " under " .. newParent.name)
+    -- First remove image from its parent
+    local oldParent = img.bone
+    for i = #oldParent.images,1,-1 do 
+        if oldParent.images[i] == img then table.remove(oldParent.images, i) end 
+    end
+    -- Assign to new Parent
+    table.insert(newParent.images, img)
+    img.bone = newParent
+    -- Retransform Image to make sure it doesn't change orientation....?
+    -- ...
+end
 
 
 
