@@ -45,9 +45,9 @@ function treeview(x, y, w, h, root, getName, getChild, getSibling, newParentCall
 	-- Element Recursion
 	treeviewHandler.selectElement = nil
 	treeviewHandler.selected = root.__treeview_selected
-	love.graphics.setScissor(x+3, y+3, w-6, h-5)
+	states.setScissor(x+3, y+3, w-6, h-5)
 	treeviewItem(x+4, y+4, root, getName, getChild, getSibling)
-	love.graphics.setScissor()
+	states.resetScissor()
 	-- an element has been clicked
 	if treeviewHandler.selectElement then 
 		if treeviewHandler.shift then
@@ -137,7 +137,7 @@ function listview(x, y, w, h, list, getName)
 	love.graphics.rectangle("fill",x+1,y+1,w-2,h-2)
 
 	-- Element Recursion
-	love.graphics.setScissor(x+3, y+3, w-6, h-5)
+	states.setScissor(x+3, y+3, w-6, h-5) 
 	x = x + 4
 	y = y + 4
 	local hovered = nil
@@ -170,7 +170,8 @@ function listview(x, y, w, h, list, getName)
 
 		y = y + treeviewHandler.lineHeight
 	end
-	love.graphics.setScissor()
+	--love.graphics.setScissor()
+	states.resetScissor()
 	if selectElement > 0 then
 		list.__treeview_selected = selectElement
 	end

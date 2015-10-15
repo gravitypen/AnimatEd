@@ -6,11 +6,17 @@ require "test"
 require "conf"
 require "treeview"
 
+require "states"
+require "skeletonState"
+require "animationsState"
+require "animationState"
+
 
 function love.load()
     curveEditor.init()
     animator.load()
     test.init()
+    states.load()
 end
 
 
@@ -35,13 +41,15 @@ end
 
 function love.draw()
     --curveEditor.draw()
-    test.draw()
+    states.draw()
+    --test.draw()
 end
 
 
 
 
 function love.update(td)
+	states.update()
 	test.update(td)
 end
 
