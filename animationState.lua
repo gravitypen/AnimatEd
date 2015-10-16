@@ -20,7 +20,7 @@ end
 
 function animationState.enter()
 	animationState.skel = animationsState.skel
-	animationState.pose = animator.newPose(animationState.skel)
+	animationState.pose = animator.newPose(animationState.skel, "animationPose")
 	animationState.blender = blender.newAniBlender(animationState.pose, animationState.skel.defaultPose)
 end
 

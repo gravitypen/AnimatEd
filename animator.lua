@@ -13,6 +13,7 @@ function animator.load()
     animator.piBy2 = math.pi*0.5
     animator.newestBone = nil
     animator.newestImage = nil
+    animator.poseCount = 0
 end
 
 
@@ -31,7 +32,7 @@ function animator.newSkeleton(name, path)
         elementMap = {},
         imageList = {}
     }
-    skel.defaultPose = animator.newPose(skel)
+    skel.defaultPose = animator.newPose(skel, name .. "_default")
     skel.rootChild = animator.newBone("#root", skel)
     animator.refreshImages(skel)
     return skel
@@ -41,9 +42,12 @@ end
 
 -- Poses are current configurations of a specific skeleton; they've got a state list, assigning a list of transformations to each bone or image
 -- transformation list contains a list of values which will be assigned to an attribute (like x, y, angle, scale..) 
-function animator.newPose(skel)
+function animator.newPose(skel, name)
+    animator.poseCount = animator.poseCount + 1
     local pose = {
         tp="pose",
+        name = name,
+        id=animator.poseCount,
         skel = skel, 
         state = {}
     }
@@ -86,6 +90,8 @@ function animator.newBone(name, parent)
         __alpha = 1.0,
         __scX = 0,
         __scY = 0,
+        __x2 = 0, --absolut position of bone's end (orientation point for child bones)
+        __y2 = 0,
         -- values influencing own appearance as well as children
         x=0, -- relative position to parent based on base system provided by parent 
         y=0, 
@@ -129,7 +135,8 @@ function animator.newImage(imgName, bone)
         offX = 0.5, 
         offY = 0.5,
         angle = 0,
-        alpha = 1.0
+        alpha = 1.0,
+        __highlight = 0, -- set to positive value to keep it highlighted for n cycles, negative to keep it highlighted indefinitely
     }
     -- Append to bone
     bone.images[#bone.images+1] = img
@@ -390,7 +397,6 @@ function animator.applyAnimation(pose, ani, p)
         for i = 1,#keyframes do
             if keyframes[i][attr] ~= nil then affectingKeyframes[#affectingKeyframes + 1] = keyframes[i] end
         end
-        if love.keyboard.isDown("lctrl") then print("  " .. attr .. "-affecting Keyframes: " .. #affectingKeyframes) end
         -- Blend between affecting keyframes
         if #affectingKeyframes <= 1 then
             -- exactly one keyframe -> apply attribute
@@ -432,10 +438,11 @@ function animator.applyAnimation(pose, ani, p)
         local keyframes = ani.keyframes[element.id]
         -- Apply all attributes
         local poseState = pose.state[element.id]
-        if love.keyboard.isDown("lctrl") then print("\nUpdating element " .. element.id .. " with " .. #poseState .. " attributes, keyframes: " .. #keyframes) end
         for i = 1,#poseState do
             local newValue = getState(keyframes, i)
-            if newValue ~= nil then poseState[i] = newValue; end
+            if newValue ~= nil then
+                poseState[i] = newValue
+            end
         end  
     end
 
@@ -536,6 +543,8 @@ function animator.applyPose(pose, trgPose)
                 element.y = values[2]
                 element.angle = values[3]
                 element.alpha = values[4]
+                element.scaleX = values[5]
+                element.scaleY = values[6]
             else
                 -- Image
                 element.x = values[1]
@@ -593,8 +602,8 @@ function animator.updateBone(bone)
         angle = angle
         scalex = 1.0
     end
-    bone.__x = p.__x + bone.x * p.baseRx + bone.y * p.baseFx
-    bone.__y = p.__y + bone.x * p.baseRy + bone.y * p.baseFy
+    bone.__x = p.__x2 + bone.x * p.baseRx + bone.y * p.baseFx
+    bone.__y = p.__y2 + bone.x * p.baseRy + bone.y * p.baseFy
     bone.__angle = p.__angle + angle
     bone.__alpha = p.__alpha * bone.alpha
     bone.__scX = p.__scX * scalex --bone.scaleX
@@ -604,8 +613,10 @@ function animator.updateBone(bone)
     local c = math.cos(angle)
     bone.baseRx = scalex * (c * p.baseRx - s * p.baseRy)
     bone.baseRy = scalex * (s * p.baseRx + c * p.baseRy)
-    bone.baseFx = bone.scaleY * (c * p.baseFx - s * p.baseFy)
-    bone.baseFy = bone.scaleY * (s * p.baseFx + c * p.baseFy)
+    bone.baseFx = (c * p.baseFx - s * p.baseFy)
+    bone.baseFy = (s * p.baseFx + c * p.baseFy)
+    bone.__x2 = bone.__x + bone.scaleY * bone.length * bone.baseFx
+    bone.__y2 = bone.__y + bone.scaleY * bone.length * bone.baseFy
 end
 
 -- called by animator.drawSkeleton, should not be called manually
@@ -633,18 +644,30 @@ function animator.drawImage(img)
     local image = img.skel.imageList[img.name]
     local bone = img.bone
     -- Draw
-    love.graphics.setColor(255,255,255, 255*bone.__alpha * img.alpha)
+    if img.__highlight ~= 0 then
+        if img.__highlight > 0 then
+            img.__highlight = img.__highlight - 1
+        end
+        love.graphics.setColor(255,255,255, 180)
+    else
+        love.graphics.setColor(255,255,255, 255*bone.__alpha * img.alpha)
+    end
     love.graphics.draw(
         image, 
-        bone.__x + img.x * bone.baseRx + img.y * bone.baseFx, 
-        bone.__y + img.x * bone.baseRy + img.y * bone.baseFy, 
+        bone.__x + img.x * bone.baseRx + img.y * bone.baseFx * bone.scaleY, 
+        bone.__y + img.x * bone.baseRy + img.y * bone.baseFy * bone.scaleY, 
         bone.__angle + img.angle, 
         img.scaleX*bone.__scX, 
-        img.scaleY*bone.__scY, 
+        img.scaleY*bone.scaleY, 
         img.offX * image:getWidth(), 
         img.offY * image:getHeight()
     )
 end
+
+
+
+
+
 
 
 -- always call animator.drawSkeleton() (or drawPose()) beforehand to make sure all bone transformations are
@@ -667,13 +690,23 @@ function animator.drawDebugBone(bone)
 end
 
 function animator.drawSingleDebugBone(bone)
-    animator.drawDebugTriangle(bone.__x, bone.__y, bone.__angle, bone.length)
+    animator.drawDebugLine(bone.__x, bone.__y, bone.__x2, bone.__y2)
+    --animator.drawDebugTriangle(bone.__x, bone.__y, bone.__angle, bone.length)
 end
 
 function animator.drawDebugBoneImages(bone)
     for i = 1,#bone.images do
         animator.drawDebugImage(bone.images[i])
     end
+end
+
+function animator.drawDebugLine(x1, y1, x2, y2)
+    love.graphics.setColor(0,255,0,180)
+    -- Line
+    love.graphics.line(x1, y1, x2, y2)
+    -- Handles
+    love.graphics.circle("fill", x1, y1, 3, 12)
+    love.graphics.circle("fill", x2, y2, 3, 12)
 end
 
 function animator.drawDebugTriangle(x, y, angle, length)

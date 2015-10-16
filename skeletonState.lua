@@ -75,6 +75,9 @@ function skeletonState.draw()
 				animator.drawSingleDebugBone(hover)
 				animator.drawDebugBoneImages(hover)
 				animator.undoPoseTransformation()
+				for i = 1,#hover.images do
+					hover.images[i].__highlight = 1 
+				end
 			end
 		end
 		if sel then 

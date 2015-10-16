@@ -14,7 +14,7 @@ function blender.newAniBlender(pose, defaultAni)
 	local b = {
 		skel = pose.skel,
 		pose = pose,
-		tempPose = animator.newPose(pose.skel),
+		tempPose = animator.newPose(pose.skel, "aniBlenderTempPose"),
 		anis = {}, -- current animations, will always contain whatever animation is currently being executed
 		defaultAni = defaultAni
 	}
@@ -211,10 +211,10 @@ function blender.update(aniBlender, applyToPose)
 	-- Default Pose
 	if aniBlender.defaultAni then
 		if aniBlender.defaultAni.tp == "pose" then
-			print("Applying default pose")
 			animator.applyPose(aniBlender.defaultAni, aniBlender.pose)
 		end
 	end
+
 
 	-- Blend between multiple animations and apply them to Pose
 	if #aniBlender.anis >= 1 then

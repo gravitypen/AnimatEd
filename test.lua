@@ -12,7 +12,7 @@ end
 
 function test.init()
 	-- Create Skeleton
-	local skel = animator.newSkeleton("Test Wolf", 'D:/programming/love-0.9.2-win32/AnimatEd/test/testSkeleton')
+	local skel = animator.newSkeleton("skelWolf", 'D:/programming/love-0.9.2-win32/AnimatEd/test/testSkeleton')
 	-- Temporary, as file system access isn't integrated
 	--animator.addImageFile(skel, "torso.png")
 	--animator.addImageFile(skel, "head1.png")
@@ -27,32 +27,32 @@ function test.init()
 	local head
 	local arm
 	local leg
-	torso = animator.newBone("Torso", skel); animator.setBone(torso, 0, 0, degree(0)); torso.length = 80; animator.newImage("torso.png", torso); animator.setImage(nil, 0, 20, 0, 0.1, true); local iTorso = animator.newestImage
-		head = animator.newBone("Head", torso); animator.setBone(head, 4, 67, degree(0), true); animator.newImage("head1.png", head); animator.setImage(nil, 20,18,0,0.1,true)
-			head = animator.newBone("Head 2", head); animator.setBone(head, 20, 10, degree(0)); animator.newImage("head2.png", head); animator.setImage(nil, -5,8,0,0.1,true)
+	torso = animator.newBone("Torso", skel); animator.setBone(torso, 0, 0, degree(0)); animator.newImage("torso.png", torso); animator.setImage(nil, 0, 20, 0, 0.1, true); local iTorso = animator.newestImage
+		head = animator.newBone("Head", torso); animator.setBone(head, 4, 27, degree(0), true); animator.newImage("head1.png", head); animator.setImage(nil, 20,18,0,0.1,true)
+			head = animator.newBone("Head 2", head); animator.setBone(head, 20, -30, degree(0)); animator.newImage("head2.png", head); animator.setImage(nil, -5,8,0,0.1,true)
 		-- Left Arm
-		arm = animator.newBone("Left Arm", torso); animator.setBone(arm, -16, 40, degree(210), true); animator.newImage("arm1.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
-			arm = animator.newBone("Left Arm 2", arm); animator.setBone(arm, 0, 35, degree(-10)); animator.newImage("arm2.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
-				arm = animator.newBone("Left Hand", arm); animator.setBone(arm, 0, 30, degree(0)); animator.newImage("hand.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
+		arm = animator.newBone("Left Arm", torso); animator.setBone(arm, -16, 0, degree(210), true); animator.newImage("arm1.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
+			arm = animator.newBone("Left Arm 2", arm); animator.setBone(arm, 0, -5, degree(-10)); animator.newImage("arm2.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
+				arm = animator.newBone("Left Hand", arm); animator.setBone(arm, 0, -10, degree(0)); animator.newImage("hand.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
 		-- Right Arm
-		arm = animator.newBone("Right Arm", torso); animator.setBone(arm, 30, 30, degree(150)); animator.newImage("arm1.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
-			arm = animator.newBone("Right Arm 2", arm); animator.setBone(arm, 0, 35, degree(-30)); animator.newImage("arm2.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
-				arm = animator.newBone("Right Hand", arm); animator.setBone(arm, 0, 30, degree(0)); animator.newImage("hand.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
+		arm = animator.newBone("Right Arm", torso); animator.setBone(arm, 30, -10, degree(150)); animator.newImage("arm1.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
+			arm = animator.newBone("Right Arm 2", arm); animator.setBone(arm, 0, -5, degree(-30)); animator.newImage("arm2.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
+				arm = animator.newBone("Right Hand", arm); animator.setBone(arm, 0, -10, degree(0)); animator.newImage("hand.png", arm); animator.setImage(nil, 0,20,math.pi,0.06,true)
 		-- Left Leg
-		leg = animator.newBone("Left Leg", torso); animator.setBone(leg, -16, -22, degree(195)); animator.newImage("arm1.png", leg); animator.setImage(nil, 0,20,math.pi,0.08,true)
-			leg = animator.newBone("Left Leg 2", leg); animator.setBone(leg, 0, 48, degree(7)); animator.newImage("arm2.png", leg); animator.setImage(nil, 0,20,math.pi,0.07,true)
-				leg = animator.newBone("Left Foot", leg); animator.setBone(leg, 0, 35, degree(-20)); animator.newImage("foot.png", leg); animator.setImage(nil, 0,20,math.pi,0.07,true)
+		leg = animator.newBone("Left Leg", torso); animator.setBone(leg, -16, -62, degree(195)); animator.newImage("arm1.png", leg); animator.setImage(nil, 0,20,math.pi,0.08,true)
+			leg = animator.newBone("Left Leg 2", leg); animator.setBone(leg, 0, 8, degree(7)); animator.newImage("arm2.png", leg); animator.setImage(nil, 0,20,math.pi,0.07,true)
+				leg = animator.newBone("Left Foot", leg); animator.setBone(leg, 0, -5, degree(-20)); animator.newImage("foot.png", leg); animator.setImage(nil, 0,20,math.pi,0.07,true)
 		-- Right Leg
-		leg = animator.newBone("Right Leg", torso); animator.setBone(leg, 8, -22, degree(170)); animator.newImage("arm1.png", leg); animator.setImage(nil, 0,20,math.pi,0.08,true)
-			leg = animator.newBone("Right Leg 2", leg); animator.setBone(leg, 0, 48, degree(20)); animator.newImage("arm2.png", leg); animator.setImage(nil, 0,20,math.pi,0.07,true)
-				leg = animator.newBone("Right Foot", leg); animator.setBone(leg, 0, 35, degree(-10)); animator.newImage("foot.png", leg); animator.setImage(nil, 0,20,math.pi,0.07,true)
+		leg = animator.newBone("Right Leg", torso); animator.setBone(leg, 8, -62, degree(170)); animator.newImage("arm1.png", leg); animator.setImage(nil, 0,20,math.pi,0.08,true)
+			leg = animator.newBone("Right Leg 2", leg); animator.setBone(leg, 0, 8, degree(20)); animator.newImage("arm2.png", leg); animator.setImage(nil, 0,20,math.pi,0.07,true)
+				leg = animator.newBone("Right Foot", leg); animator.setBone(leg, 0, -5, degree(-10)); animator.newImage("foot.png", leg); animator.setImage(nil, 0,20,math.pi,0.07,true)
 
 
 	-- Create Poses
-	local pose = animator.newPose(skel)
+	local pose = animator.newPose(skel, "TestPose")
 
 	-- Create Animations
-	local ani = animator.newAnimation("Idle", skel, 1.6)
+	local ani = animator.newAnimation("aniIdle", skel, 1.6)
 		head = animator.getBoneByName(skel, "Head")
 			animator.newKeyframe(ani, 0.0, head, {0.5,-0.5, 0.5,1.5}, nil, nil, degree(-20), 1.0, 1.0, 1.0)
 			animator.newKeyframe(ani, 0.5, head, {0.5,-0.5, 0.5,1.5}, nil, nil,   degree(5), 1.0, 1.0, 1.0)
@@ -85,12 +85,12 @@ function test.init()
 			animator.newKeyframe(ani, 0.0, iTorso, "sqrt", 0, 20)
 			animator.newKeyframe(ani, 0.5, iTorso, "sqrt", 0, 25)
 			animator.newKeyframe(ani, 1.0, iTorso, "", 0, 20)
-	local ani2 = animator.newAnimation("Walk", skel, 0.7)
+	local ani2 = animator.newAnimation("aniWalk", skel, 0.7)
 		leg = animator.getBoneByName(skel, "Left Leg")
-			animator.newKeyframe(ani2, 0.0, leg, {0.0,0.3, 1.0,0.7}, nil, nil, degree(240), nil, nil, nil)		
+			animator.newKeyframe(ani2, 0.0, leg, {0.3,0.0, 0.7,1.0}, nil, nil, degree(240), nil, 1.0, nil)		
 			--animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(220), nil, nil, nil)
-			animator.newKeyframe(ani2, 0.55, leg, "linear", nil, nil, degree(130), nil, nil, nil)
-			animator.newKeyframe(ani2, 1.0, leg, "", nil, nil, degree(240), nil, nil, nil)
+			animator.newKeyframe(ani2, 0.55, leg, "linear", nil, nil, degree(130), nil, 1.8, nil)
+			animator.newKeyframe(ani2, 1.0, leg, "", nil, nil, degree(240), nil, 1.0, nil)
 		leg = animator.getBoneByName(skel, "Right Leg")
 			animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(120), nil, nil, nil)
 			animator.newKeyframe(ani2, 0.45, leg, "cos", nil, nil, degree(220), nil, nil, nil)
