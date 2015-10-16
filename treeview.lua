@@ -1,15 +1,17 @@
 
 
 treeviewHandler = {
-	frameColor = {255,255,255,255},
-	backColor = {30,30,30,255},
-	textColor = {255,255,255,180},
-	highlightColor = {255,255,255,255},
-	selectBackColor = {64,64,64,255},
+	frameColor = {0,0,0,255},
+	backColor = {160,160,160,255},
+	textColor = {0,0,0,220},
+	collapseHandleColor = {0,0,0,128},
+	highlightColor = {64,0,0,255},
+	selectBackColor = {192,192,192,255},
 	textScale = 1.0,
 	smallTextScale = 1.0,
 	lineHeight = 18,
-	indentation = 10,
+	indentation = 20,
+	iconTextDistance = 25, 
 	leftdown = false,
 	leftclick = false,
 	selectElement = nil,
@@ -27,6 +29,8 @@ function treeviewHandler.updateInput()
 	treeviewHandler.leftdown = love.mouse.isDown("l")
 	treeviewHandler.leftclick = treeviewHandler.leftdown and not prev
 end
+
+treeviewHandler.updateInput()
 
 -- root being a single element and getName,
 -- getChild, getSibling being functions returning the respective data or nil
@@ -92,7 +96,7 @@ function treeviewItem(x, y, node, getName, getChild, getSibling)
 		love.graphics.rectangle("fill", 0,y,8192,treeviewHandler.lineHeight-2)
 	end
 	-- Print Element
-	love.graphics.setColor(hover and treeviewHandler.highlightColor or treeviewHandler.textColor)
+	love.graphics.setColor(hover and treeviewHandler.highlightColor or treeviewHandler.collapseHandleColor)
 	local hasChild = getChild(node)
 	if hasChild then 
 		local s
@@ -103,7 +107,8 @@ function treeviewItem(x, y, node, getName, getChild, getSibling)
 		end
 		love.graphics.print(s, x, y, 0, treeviewHandler.smallTextScale, treeviewHandler.smallTextScale, 0, 0)
 	end
-	love.graphics.print(getName(node), x+20, y, 0, treeviewHandler.textScale, treeviewHandler.textScale, 0, 0)
+	love.graphics.setColor(hover and treeviewHandler.highlightColor or treeviewHandler.textColor)
+	love.graphics.print(getName(node), x+treeviewHandler.iconTextDistance, y, 0, treeviewHandler.textScale, treeviewHandler.textScale, 0, 0)
 	-- Proceed with Childs
 	y = y + treeviewHandler.lineHeight
 	if hasChild and node.__treeview_open then
@@ -153,14 +158,12 @@ function listview(x, y, w, h, list, getName)
 				if treeviewHandler.leftclick then
 					-- Select Element
 					selectElement = i
-					print("jo!")
 				end
 			end
 		end
 		
 		-- Draw Selection
 		if list.__treeview_selected == i then
-			print("Drawing Selection")
 			love.graphics.setColor(treeviewHandler.selectBackColor)
 			love.graphics.rectangle("fill", 0,y,8192,treeviewHandler.lineHeight-2)			
 		end
@@ -176,5 +179,5 @@ function listview(x, y, w, h, list, getName)
 		list.__treeview_selected = selectElement
 	end
 
-	return list.__treview_selected, hovered
+	return list.__treeview_selected, hovered
 end

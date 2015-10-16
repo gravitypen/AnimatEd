@@ -32,6 +32,8 @@ function blender.playAni(aniBlender, ani, loops, priority, fadeInTime, speedFact
 		if aniBlender.anis[i].animation == ani then index = i; break end
 	end
 
+	local tmp = ""
+
 	if index > 0 then
 
 		-- ani already running, only update values
@@ -42,6 +44,7 @@ function blender.playAni(aniBlender, ani, loops, priority, fadeInTime, speedFact
 		if priority then a.priority = priority end
 		-- move to top of animation list
 		blender.resort(aniBlender, index)
+		tmp = a.fadeStep
 
 	else
 
@@ -60,10 +63,12 @@ function blender.playAni(aniBlender, ani, loops, priority, fadeInTime, speedFact
 			fadeStep = 1.0/fadeInTime,
 			priority = priority
 		}
+		tmp = aniObject.fadeStep
 		table.insert(aniBlender.anis, aniObject)
 		blender.resort(aniBlender, #aniBlender.anis)
 
 	end
+	print("Playing ani with fadeStep = " .. tmp)
 
 end
 
@@ -126,7 +131,23 @@ function blender.stopAni(aniBlender, ani, fadeOutTime)
 end
 
 
-
+function blender.stopAllAnis(aniBlender, fadeOutTime)
+	for i = #aniBlender.anis,1,-1 do
+		-- initialize fade out
+		if fadeOutTime then
+			if fadeOutTime <= 0 then
+				-- stop immediately
+				table.remove(aniBlender.anis, i)
+			else
+				-- custom fade out time
+				aniBlender.anis[i].fadeStep = -1.0/fadeOutTime
+			end
+		else
+			-- use fade in speed for fade out
+			aniBlender.anis[i].fadeStep = -math.abs(aniBlender.anis[i].fadeStep)
+		end	
+	end
+end
 
 
 
@@ -147,8 +168,10 @@ function blender.update(aniBlender, applyToPose)
 	if blender.td <= 0 then return end
 
 	-- no animation active -> play default animation
-	if #aniBlender.anis == 0 then
-		blender.playAni(aniBlender, aniBlender.defaultAni, -1)
+	if #aniBlender.anis == 0 and aniBlender.defaultAni then
+		if aniBlender.defaultAni.tp == "ani" then 
+			blender.playAni(aniBlender, aniBlender.defaultAni, -1)
+		end
 	end
 
 	-- Update current animations
@@ -165,7 +188,7 @@ function blender.update(aniBlender, applyToPose)
 				ani.progress = ani.progress - math.floor(ani.progress)
 				if ani.loopsRemaining <= 0 then
 					-- Animation has run out
-					ani.fadeStep = -1.5*math.abs(ani.fadeStep) ---2.0/blender.td
+					ani.fadeStep = -0.01 -- -1.5*math.abs(ani.fadeStep) ---2.0/blender.td
 				end
 			else
 				-- Animation loops indefinitely, so simply reset progress
@@ -181,6 +204,15 @@ function blender.update(aniBlender, applyToPose)
 		elseif ani.opacity <= 0.0 then
 			-- faded out
 			table.remove(aniBlender.anis, a)
+		end
+	end
+
+
+	-- Default Pose
+	if aniBlender.defaultAni then
+		if aniBlender.defaultAni.tp == "pose" then
+			print("Applying default pose")
+			animator.applyPose(aniBlender.defaultAni, aniBlender.pose)
 		end
 	end
 
@@ -218,10 +250,15 @@ end
 
 
 
-function blender.debug(aniBlender)
-	local y = 0
+function blender.debug(aniBlender, x, y)
+	x = x or 0
+	y = y or 0
 	for i = 1,#aniBlender.anis do
-		love.graphics.print(i .. ". " .. aniBlender.anis[i].animation.name .. ", " .. aniBlender.anis[i].loopsRemaining .. ", " .. math.floor(100*aniBlender.anis[i].progress), 0, y)
+		love.graphics.print(i .. ". " .. aniBlender.anis[i].animation.name .. ", " 
+			.. aniBlender.anis[i].loopsRemaining .. ", "
+			.. math.floor(10*aniBlender.anis[i].progress) .. ", "
+ 			.. math.floor(1000*aniBlender.anis[i].opacity) .. " (" .. aniBlender.anis[i].fadeStep .. ")"
+ 			, x, y)
 		y = y + 20
 	end
 end

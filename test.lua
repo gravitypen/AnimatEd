@@ -156,7 +156,6 @@ function test.draw()
 	blender.debug(test.blender)
 	love.graphics.print("Press Space to trigger Run Animation, LShift to flip wolf, H to flip head, D for debug", 400, 8)
 
-	treeviewHandler.updateInput()
 	treeview(33,50,200,600, test.root.childs[1], 
 		function(e) return e.name end,
 		function(e) return (e.childs and e.childs[1]) or (e.images and e.images[1]) end,

@@ -31,6 +31,7 @@ function animator.newSkeleton(name, path)
         elementMap = {},
         imageList = {}
     }
+    skel.defaultPose = animator.newPose(skel)
     skel.rootChild = animator.newBone("#root", skel)
     animator.refreshImages(skel)
     return skel
@@ -42,6 +43,7 @@ end
 -- transformation list contains a list of values which will be assigned to an attribute (like x, y, angle, scale..) 
 function animator.newPose(skel)
     local pose = {
+        tp="pose",
         skel = skel, 
         state = {}
     }
@@ -101,6 +103,7 @@ function animator.newBone(name, parent)
     if parent.tp == "bone" then parent.childs[#parent.childs+1] = node end
     node.skel.elementMap[node.id] = node
     animator.newestBone = node
+    animator.fillUpPose(skel.defaultPose, node)
     return node
 end
 
@@ -133,6 +136,7 @@ function animator.newImage(imgName, bone)
     print("Added image " .. imgName .. " to " .. bone.name)
     img.skel.elementMap[img.id] = img
     animator.newestImage = img
+    animator.fillUpPose(bone.skel.defaultPose, img)
     return img
 end
 
@@ -217,6 +221,20 @@ end
 
 
 
+function animator.fillUpPose(pose, element)
+    if element then
+        -- add a specific bone or image
+        pose.state[element.id] = {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
+    else
+        -- check for all existing bones
+        for id,element in pairs(pose.skel.elementMap) do
+            if not pose.state[id] then
+                pose.state[id] = {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
+            end
+        end
+    end
+end
+
 -- Checks the images folder within the skeleton's assigned directory and reloads any images that weren't
 -- previously loaded
 function animator.refreshImages(skel)
@@ -288,6 +306,7 @@ end
 
 function animator.setBone(bone, x, y, angle, drawOverParent)
     if not bone then bone = animator.newestBone end
+    animator.setPoseBone(bone.skel.defaultPose, bone, x, y, angle, 1.0)
     if x then bone.x = x end
     if y then bone.y = y end
     if angle then bone.angle = angle end
@@ -297,6 +316,7 @@ end
 function animator.setImage(img, x, y, angle, scx, scy)
     if not img then img = animator.newestImage end
     if not img then print("Could not set image to " .. x .. "," .. y .. "," .. angle .. "," .. scx .. "," .. tostring(scy) .. " because no image has been created yet") return end
+    animator.setPoseImage(img.skel.defaultPose, img, x, y, angle, scx, scy, 1.0)
     if x then img.x = x end
     if y then img.y = y end
     if angle then img.angle = angle end
@@ -479,29 +499,52 @@ function animator.drawPose(pose, x, y, angle, scalex, scaley, alpha, debug)
     love.graphics.scale(scalex, scaley)
     love.graphics.rotate(angle)
     animator.applyPose(pose)
+    animator.previousPoseTransformation = {x, y, angle, scalex, scaley}
     animator.drawSkeleton(pose.skel, 0,0, 0.0, 1.0, 1.0, alpha, debug) --x, y, angle, scalex, scaley, alpha)
     love.graphics.pop()
 end
 
+function animator.reapplyPreviousPoseTransformation()
+    love.graphics.push()
+    local t = animator.previousPoseTransformation
+    love.graphics.translate(t[1], t[2])
+    love.graphics.scale(t[4], t[5])
+    love.graphics.rotate(t[3])
+end
+
+animator.undoPoseTransformation = love.graphics.pop
+
 -- Applies a given pose to its skeleton by applying all bones
-function animator.applyPose(pose)
-    for id,element in pairs(pose.skel.elementMap) do
-        -- values stored this way: {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
-        local values = pose.state[id]
-        if element.tp == "bone" then
-            -- Bone
-            element.x = values[1]
-            element.y = values[2]
-            element.angle = values[3]
-            element.alpha = values[4]
-        else
-            -- Image
-            element.x = values[1]
-            element.y = values[2]
-            element.angle = values[3]
-            element.alpha = values[4]
-            element.scaleX = values[5]
-            element.scaleY = values[6]
+function animator.applyPose(pose, trgPose)
+    if trgPose then
+        -- Apply one pose to another
+        for id,_ in pairs(pose.skel.elementMap) do
+            local values = pose.state[id]
+            local targets = trgPose.state[id]
+            for i = 1,6 do
+                targets[i] = values[i]
+            end
+        end
+    else
+        -- No Target Pose specified -> apply to skeleton (i.e. bones and images themselves)
+        for id,element in pairs(pose.skel.elementMap) do
+            -- values stored this way: {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
+            local values = pose.state[id]
+            if element.tp == "bone" then
+                -- Bone
+                element.x = values[1]
+                element.y = values[2]
+                element.angle = values[3]
+                element.alpha = values[4]
+            else
+                -- Image
+                element.x = values[1]
+                element.y = values[2]
+                element.angle = values[3]
+                element.alpha = values[4]
+                element.scaleX = values[5]
+                element.scaleY = values[6]
+            end
         end
     end
 end
@@ -620,8 +663,17 @@ function animator.drawDebugBone(bone)
         animator.drawDebugBone(bone.childs[i])
     end
     -- Itself
-    --print("Drawing " .. bone.name .. " to " .. bone.__x .. "," .. bone.__y)
+    animator.drawSingleDebugBone(bone)
+end
+
+function animator.drawSingleDebugBone(bone)
     animator.drawDebugTriangle(bone.__x, bone.__y, bone.__angle, bone.length)
+end
+
+function animator.drawDebugBoneImages(bone)
+    for i = 1,#bone.images do
+        animator.drawDebugImage(bone.images[i])
+    end
 end
 
 function animator.drawDebugTriangle(x, y, angle, length)
@@ -634,4 +686,23 @@ function animator.drawDebugTriangle(x, y, angle, length)
     -- Draw Triangle
     love.graphics.setColor(0,255,0,128)
     love.graphics.polygon("line", x1,y1, x2,y2, x3,y3)
+end
+
+
+function animator.drawDebugImage(img)
+    -- Update
+    local image = img.skel.imageList[img.name]
+    local bone = img.bone
+    -- Draw
+    love.graphics.setColor(0,255,0, 128)
+    love.graphics.draw(
+        image, 
+        bone.__x + img.x * bone.baseRx + img.y * bone.baseFx, 
+        bone.__y + img.x * bone.baseRy + img.y * bone.baseFy, 
+        bone.__angle + img.angle, 
+        img.scaleX*bone.__scX, 
+        img.scaleY*bone.__scY, 
+        img.offX * image:getWidth(), 
+        img.offY * image:getHeight()
+    )
 end
