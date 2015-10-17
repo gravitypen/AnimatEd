@@ -88,6 +88,13 @@ end
 		local y1 = moveStartPos and state[2]+newdy or state[2]
 		local newAngle = state[3]
 		local newScale = state[6]
+		if moveEndPos and not moveStartPos then 
+			local difx = bone.length * state[6] * math.sin(state[3]) + newdx
+			local dify = bone.length * state[6] * math.cos(state[3]) + newdy
+			newAngle = getAngle(-difx, -dify)
+			if states.getKeyDown("lshift") then newScale = math.sqrt(difx*difx + dify*dify)/bone.length end
+			if states.getKeyDown("r") then newScale = 1.0 end
+		end
 		-- Apply
 		animator.setPoseBone(pose, bone,
 			x1,

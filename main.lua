@@ -84,3 +84,19 @@ function printOut(s, changeIndent)
         printIndentation = printIndentation + changeIndent
     end
 end
+
+
+
+
+
+function getAngle(dx, dy)
+    if (dy == 0) then
+        if dx < 0 then return math.pi*0.5 else return -math.pi*0.5 end
+    else
+        if dy > 0 then
+            return math.atan(dx/dy) + math.pi
+        else
+            return math.atan(dx/dy)
+        end
+    end
+end
