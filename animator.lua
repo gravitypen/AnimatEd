@@ -104,7 +104,8 @@ function animator.newBone(name, parent)
         baseRx = 1.0, -- "right" vector 
         baseRy = 0.0,
         baseFx = 0.0, -- "forward" vector
-        baseFy = 1.0
+        baseFy = 1.0,
+        __highlight = 0,
     }
     if parent.tp == "bone" then parent.childs[#parent.childs+1] = node end
     node.skel.elementMap[node.id] = node
@@ -291,13 +292,14 @@ end
 
 
 
-function animator.setPoseBone(pose, bone, x, y, angle, alpha)
+function animator.setPoseBone(pose, bone, x, y, angle, alpha, length)
     -- list format: {element.x, element.y, element.angle, element.alpha, element.scaleX, element.scaleY}
     local list = pose.state[bone.id]
     if x then list[1] = x end
     if y then list[2] = y end
     if angle then list[3] = angle end
     if alpha then list[4] = alpha end
+    if length then list[6] = length end
 end
 
 function animator.setPoseImage(pose, image, x, y, angle, scx, scy, alpha) 
@@ -690,7 +692,12 @@ function animator.drawDebugBone(bone)
 end
 
 function animator.drawSingleDebugBone(bone)
-    animator.drawDebugLine(bone.__x, bone.__y, bone.__x2, bone.__y2)
+    if bone.__highlight ~= 0 then
+        if bone.__highlight > 0 then
+            bone.__highlight = bone.__highlight - 1
+        end
+    end
+    animator.drawDebugLine(bone.__x, bone.__y, bone.__x2, bone.__y2, bone.__highlight ~= 0)
     --animator.drawDebugTriangle(bone.__x, bone.__y, bone.__angle, bone.length)
 end
 
@@ -700,13 +707,13 @@ function animator.drawDebugBoneImages(bone)
     end
 end
 
-function animator.drawDebugLine(x1, y1, x2, y2)
-    love.graphics.setColor(0,255,0,180)
+function animator.drawDebugLine(x1, y1, x2, y2, highlight)
+    love.graphics.setColor(0, highlight and 255 or 180, 0, hightlight and 255 or 180)
     -- Line
     love.graphics.line(x1, y1, x2, y2)
     -- Handles
-    love.graphics.circle("fill", x1, y1, 3, 12)
-    love.graphics.circle("fill", x2, y2, 3, 12)
+    love.graphics.circle("fill", x1, y1, 4, 12)
+    love.graphics.circle("line", x2, y2, 3, 12)
 end
 
 function animator.drawDebugTriangle(x, y, angle, length)

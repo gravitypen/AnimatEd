@@ -35,7 +35,7 @@ function love.mousereleased(x, y, button)
 end
 
 function love.keypressed(key)
-
+    states.keypressed(key)
 end
 
 

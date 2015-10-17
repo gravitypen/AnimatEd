@@ -31,6 +31,8 @@ function animationState.update()
 		animationState.zoomLevel = clamp(animationState.zoomLevel + states.mouse.mz, -32, 32)
 		animationState.zoom = math.pow(1.1, animationState.zoomLevel)
 	end
+	-- Update Animations
+	if animationState.blender then blender.update(animationState.blender) end
 end
 
 function animationState.draw()
@@ -39,7 +41,6 @@ function animationState.draw()
 	-- Title
 	states.drawTitle("Animation Editing")
 	-- Skeleton
-	if animationState.blender then blender.update(animationState.blender) end
 	animator.drawPose(animationState.pose, states.windowW*0.5, states.windowH*0.5, 0.0, animationState.zoom, animationState.zoom, 1.0, states.getKeyDown("d"))
 
 	-- Bones of Current Skeleton

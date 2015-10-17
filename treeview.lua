@@ -39,6 +39,9 @@ function treeview(x, y, w, h, root, getName, getChild, getSibling, newParentCall
 
 	treeviewHandler.checkMouse = treeviewHandler.mx >= x and treeviewHandler.mx <= x+w and treeviewHandler.my >= y and treeviewHandler.my <= y+h
 	if not treeviewHandler.shift and treeviewHandler.checkMouse and treeviewHandler.leftclick then root.__treeview_selected = nil end
+	if not treeviewHandler.checkMouse then
+		treeviewHandler.hovered = nil
+	end
 
 	-- Draw Back
 	love.graphics.setColor(treeviewHandler.frameColor)

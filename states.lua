@@ -15,9 +15,16 @@ states = {
 	transitionEndtime = 0,
 	transitionDuration = 1,
 	-- Mouse interaction
-	inactiveMouse = {active = false, x = -9999, y = -9999, z = 0, mx = 0, my = 0, mz = 0, leftclick = 0, rightclick = 0},
-	activeMouse = {active = true, x = 0, y = 0, z = 0, mx = 0, my = 0, mz = 0, leftclick = 0, rightclick = 0},
+	inactiveMouse = {active = false, x = -9999, y = -9999, z = 0, mx = 0, my = 0, mz = 0, leftclick = 0, rightclick = 0, skelx = -9999, skely = -9999, dragging = false, dragJustStarted = false},
+	activeMouse = {
+		active = true, 
+		x = 0, y = 0, z = 0, mx = 0, my = 0, mz = 0, 
+		leftclick = 0, rightclick = 0, 
+		skelx = 0, skely = 0,
+		dragging = false, dragFromX = 0, dragFromY = 0, dragDifX = 0, dragDifY = 0, dragJustStarted = false, dragCallback = nil, dropCallback = nil,
+	},
 	mouse = nil,
+	transformation = {0,0, 0, 1,1},
 	-- Misc
 	scissorX1 = 0,
 	scissorX2 = love.window.getWidth(),
@@ -67,6 +74,15 @@ function states.mousepressed(x, y, btn)
 	end
 end
 
+function states.keypressed(key)
+	-- Propagate to current state
+	print("Key Event: " .. key)
+	if states.objects[states.current].keypressed then states.objects[states.current].keypressed(key) end
+end
+
+
+
+
 function states.update()
 	-- Misc
 	states.windowW = love.window.getWidth()
@@ -75,6 +91,45 @@ function states.update()
 	states.activeMouse.x, states.activeMouse.y = love.mouse.getPosition()
 	states.activeMouse.leftclick = states.getKeyChange(states.activeMouse.leftclick, love.mouse.isDown("l"))
 	states.activeMouse.rightclick = states.getKeyChange(states.activeMouse.rightclick, love.mouse.isDown("r"))
+	-- Mouse Coordinates in Skeleton Space (so far neglecting angle, as it's always 0.0)
+	states.activeMouse.skelx = (states.activeMouse.x - states.transformation[1]) / states.transformation[4]
+	states.activeMouse.skely = (states.activeMouse.y - states.transformation[2]) / states.transformation[5]
+	-- Dragging
+	states.activeMouse.dragJustStarted = false
+	if states.mouse.active then
+		if states.activeMouse.leftclick == 2 then
+			-- start dragging
+			states.activeMouse.dragging = true
+			states.activeMouse.dragJustStarted = true
+			states.activeMouse.dragFromX = states.activeMouse.skelx
+			states.activeMouse.dragFromY = states.activeMouse.skely
+			states.activeMouse.dragDifX = 0
+			states.activeMouse.dragDifY = 0
+			states.activeMouse.dragDifDX = 0
+			states.activeMouse.dragDifDY = 0
+		else
+			if states.activeMouse.leftclick == 1 then
+				-- currently dragging
+				local oldx = states.activeMouse.dragDifX
+				local oldy = states.activeMouse.dragDifY
+				states.activeMouse.dragDifX = states.activeMouse.skelx - states.activeMouse.dragFromX
+				states.activeMouse.dragDifY = states.activeMouse.skely - states.activeMouse.dragFromY
+				states.activeMouse.dragDifDX = states.activeMouse.dragDifX - oldx
+				states.activeMouse.dragDifDY = states.activeMouse.dragDifY - oldy
+				if states.activeMouse.dragCallback then states.activeMouse.dragCallback(states.activeMouse.dragDifDX, states.activeMouse.dragDifDY) end
+			else
+				-- stop dragging
+				states.activeMouse.dragging = false
+				if states.activeMouse.dropCallback then states.activeMouse.dropCallback(states.activeMouse.dragDifX, states.activeMouse.dragDifY) end
+				states.activeMouse.dragCallback = nil
+				states.activeMouse.dropCallback = nil
+			end
+		end
+	else
+		states.activeMouse.dragging = false
+		states.activeMouse.dragCallback = nil
+		states.activeMouse.dropCallback = nil
+	end
 	-- Transition?
 	if states.transitionActive then
 		-- Handle Transition
@@ -90,6 +145,9 @@ function states.update()
 	end
 	states.mouse.mz = 0
 end
+
+
+
 
 function states.draw()
 	-- Draw Transition or simple State
@@ -186,6 +244,16 @@ function states.getKeyDown(key)
 		return false
 	else
 		return love.keyboard.isDown(key)
+	end
+end
+
+-- Obtains the previous skeleton transformation used by the animation system, later uses
+-- it to reverse mouse coordinates to get them in skeleton space
+function states.registerTransformation()
+	if animator.previousPoseTransformation then
+		for i = 1,5 do
+			states.transformation[i] = animator.previousPoseTransformation[i]
+		end
 	end
 end
 
