@@ -7,6 +7,7 @@ animationState = {
 	pose = nil,
 	zoomLevel = 0,
 	zoom = 1.0,
+	showTreeview = false,
 }
 
 
@@ -44,35 +45,44 @@ function animationState.draw()
 	animator.drawPose(animationState.pose, states.windowW*0.5, states.windowH*0.5, 0.0, animationState.zoom, animationState.zoom, 1.0, states.getKeyDown("d"))
 
 	-- Bones of Current Skeleton
-	local sel, hover = treeview(32,1,220,states.windowH-200, animationState.skel.rootChild.childs[1], 
-		function(e) return e.name end,
-		function(e) return (e.childs and e.childs[1]) or (e.images and e.images[1]) end,
-		function(e) 
-			if e.tp == "img" then
-				for i =1,#e.bone.images do
-					if e.bone.images[i] == e then return e.bone.images[i+1] end
+	if animationState.showTreeview then
+		local sel, hover = treeview(32,1,220,states.windowH-222, animationState.skel.rootChild.childs[1], 
+			function(e) return e.name end,
+			function(e) return (e.childs and e.childs[1]) or (e.images and e.images[1]) end,
+			function(e) 
+				if e.tp == "img" then
+					for i =1,#e.bone.images do
+						if e.bone.images[i] == e then return e.bone.images[i+1] end
+					end
+				else
+					for i=1,#e.parent.childs-1 do
+						if e.parent.childs[i] == e then return e.parent.childs[i+1] end
+					end
+					return e.parent.images[1]
 				end
-			else
-				for i=1,#e.parent.childs-1 do
-					if e.parent.childs[i] == e then return e.parent.childs[i+1] end
-				end
-				return e.parent.images[1]
+				return nil
+			end,
+			function(c,p) end
+		)
+		if hover then
+			-- Draw Bone
+			if hover.tp == "bone" then
+				animator.reapplyPreviousPoseTransformation()
+				animator.drawSingleDebugBone(hover)
+				animator.drawDebugBoneImages(hover)
+				animator.undoPoseTransformation()
 			end
-			return nil
-		end,
-		function(c,p) end
-	)
-	if hover then
-		-- Draw Bone
-		if hover.tp == "bone" then
-			animator.reapplyPreviousPoseTransformation()
-			animator.drawSingleDebugBone(hover)
-			animator.drawDebugBoneImages(hover)
-			animator.undoPoseTransformation()
 		end
-	end
-	if sel then 
-		-- Select Bone
+		if sel then 
+			-- Select Bone
+		end
+		if button(142,states.windowH-210, 218,20, "Hide Treeview") then
+			animationState.showTreeview = false
+		end
+	else
+		if button(142,10,218,20, "Show Treeview") then 
+			animationState.showTreeview = true
+		end
 	end
 
 	-- Global Animation Properties

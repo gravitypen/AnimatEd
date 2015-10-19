@@ -6,6 +6,7 @@ require "test"
 require "conf"
 require "treeview"
 require "editor"
+require "util"
 
 require "states"
 require "skeletonState"
@@ -18,6 +19,7 @@ function love.load()
     animator.load()
     test.init()
     states.load()
+    --love.graphics.setFont(24)
 end
 
 
@@ -36,13 +38,19 @@ end
 
 function love.keypressed(key)
     states.keypressed(key)
+    handleTextInputKeypress(key)
 end
 
+function love.textinput(t)
+    updateTextInput(t)
+end
 
 
 
 function love.draw()
     states.draw()
+    drawTextInput()
+    drawDialog()
     while love.keyboard.isDown("q") do
     end
 end
@@ -86,17 +94,3 @@ function printOut(s, changeIndent)
 end
 
 
-
-
-
-function getAngle(dx, dy)
-    if (dy == 0) then
-        if dx < 0 then return math.pi*0.5 else return -math.pi*0.5 end
-    else
-        if dy > 0 then
-            return math.atan(dx/dy) + math.pi
-        else
-            return math.atan(dx/dy)
-        end
-    end
-end

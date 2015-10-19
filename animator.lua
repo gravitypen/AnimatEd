@@ -126,7 +126,9 @@ function animator.newImage(imgName, bone)
     local img = {
         tp="img",
         name=imgName, 
+        object=bone.skel.imageList[imgName],
         id = "i" .. bone.skel.imgCount,
+        idNum = bone.skel.imgCount,
         bone=bone, 
         skel=bone.skel,
         scaleX=1.0, 
@@ -138,6 +140,11 @@ function animator.newImage(imgName, bone)
         angle = 0,
         alpha = 1.0,
         __highlight = 0, -- set to positive value to keep it highlighted for n cycles, negative to keep it highlighted indefinitely
+        __x = 0,
+        __y = 0,
+        __scX = 1,
+        __scY = 1,
+        __angle = 0,
     }
     -- Append to bone
     bone.images[#bone.images+1] = img
@@ -261,7 +268,8 @@ end
 -- adds a single image file to the skeleton's image list and loads it
 function animator.addImageFile(skel, file)
     --local fullPath = skel.projectPath .. "/images/" .. file
-    skel.imageList[file] = animator.loadImage(file) --love.graphics.newImage(fullPath)
+    local img = animator.loadImage(file)
+    skel.imageList[file] = img --love.graphics.newImage(fullPath)
     table.insert(skel.imageList, file)
     print("Loaded image '" .. file .. "' with width " .. (skel.imageList[file]):getWidth()) --" from " .. fullPath)
 end 
@@ -383,10 +391,74 @@ function animator.reorderImage(img, newParent)
     -- ...
 end
 
+-- This should be called when new bones/images have been added to a skeleton, to make sure the animation
+-- still works without causing a crash (usually just in an editor, as games shouldn't add new bones on the fly)
+function animator.completeAnimation(ani)
+    -- Keyframe List per Bone and Image Instance
+    for id,element in pairs(ani.skel.elementMap) do
+        if not ani.keyframes[id] then 
+            ani.keyframes[id] = {
+                affects = {false, false, false, false, false, false} -- denotes, which attributes the keyframes of an animation affect (x, y, angle, alpha, xsc, ysc)
+            }
+        end
+    end
+    -- make sure deleted bones get deleted
+    for id,_ in pairs(ani.keyframes) do
+        if not ani.skel.elementMap[id] then ani.keyframes[id] = nil end
+    end
+end
 
 
 
 
+function animator.deleteElement(element)
+    if element.tp == "bone" then 
+        animator.deleteBone(element)
+    else
+        animator.deleteImage(element)
+    end
+end
+
+function animator.deleteImage(img)
+    -- Remove from hierarchy
+    local p = img.bone
+    for i = #p.images,1,-1 do
+        if p.images[i] == img then
+            table.remove(p.images, i)
+        end
+    end
+    -- Remove self
+    animator._deleteImage(img)
+end
+
+    function animator._deleteImage(img)
+        -- Remove from element map
+        img.skel.elementMap[img.id] = nil
+    end
+
+function animator.deleteBone(bone)
+    -- Remove from hierarchy
+    local p = bone.parent
+    for i = #p.childs,1,-1 do
+        if p.childs[i] == bone then
+            table.remove(p.childs, i)
+        end
+    end
+    -- Remove self and childs
+    animator._deleteBone(bone)
+end
+
+    function animator._deleteBone(bone)
+        -- Remove from element map
+        bone.skel.elementMap[bone.id] = nil
+        -- Remove childs
+        for c = 1,#bone.childs do
+            animator._deleteBone(bone.childs[c])
+        end
+        for i = 1,#bone.images do
+            animator._deleteImage(bone.images[i])
+        end
+    end
 
 
 
@@ -645,6 +717,11 @@ function animator.drawImage(img)
     -- Update
     local image = img.skel.imageList[img.name]
     local bone = img.bone
+    img.__x = bone.__x + img.x * bone.baseRx + img.y * bone.baseFx * bone.scaleY
+    img.__y = bone.__y + img.x * bone.baseRy + img.y * bone.baseFy * bone.scaleY
+    img.__angle = bone.__angle + img.angle
+    img.__scX = img.scaleX * bone.__scX
+    img.__scY = img.scaleY * bone.scaleY
     -- Draw
     if img.__highlight ~= 0 then
         if img.__highlight > 0 then
@@ -656,18 +733,34 @@ function animator.drawImage(img)
     end
     love.graphics.draw(
         image, 
-        bone.__x + img.x * bone.baseRx + img.y * bone.baseFx * bone.scaleY, 
-        bone.__y + img.x * bone.baseRy + img.y * bone.baseFy * bone.scaleY, 
-        bone.__angle + img.angle, 
-        img.scaleX*bone.__scX, 
-        img.scaleY*bone.scaleY, 
+        img.__x, 
+        img.__y, 
+        img.__angle, 
+        img.__scX, 
+        img.__scY, 
         img.offX * image:getWidth(), 
         img.offY * image:getHeight()
     )
+    if animator.drawBoundingBoxes then
+        animator.drawBoundingBox(
+            bone.__x + img.x * bone.baseRx + img.y * bone.baseFx * bone.scaleY, 
+            bone.__y + img.x * bone.baseRy + img.y * bone.baseFy * bone.scaleY, 
+            image:getWidth() *img.__scX*1.05, 
+            image:getHeight()*img.__scY*1.05,
+            bone.__angle + img.angle
+        )
+    end
 end
 
 
-
+function animator.drawBoundingBox(x,y,w,h,a)
+    love.graphics.setColor(0,255,0,128)
+    love.graphics.push()
+    love.graphics.translate(x,y)
+    love.graphics.rotate(a)
+    love.graphics.rectangle("line",-w/2, -h/2, w, h)
+    love.graphics.pop()
+end
 
 
 

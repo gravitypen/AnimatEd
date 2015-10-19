@@ -1,4 +1,6 @@
 
+require "states"
+
 
 treeviewHandler = {
 	frameColor = {0,0,0,255},
@@ -24,13 +26,11 @@ treeviewHandler = {
 function treeviewHandler.updateInput()
 	local shift = love.keyboard.isDown("lshift") or love.keyboard.isDown("rshift")
 	treeviewHandler.shift = shift
-	treeviewHandler.mx, treeviewHandler.my = love.mouse.getPosition()
+	treeviewHandler.mx, treeviewHandler.my = states.mouse.x, states.mouse.y
 	local prev = treeviewHandler.leftdown
-	treeviewHandler.leftdown = love.mouse.isDown("l")
+	treeviewHandler.leftdown = (states.mouse.leftclick > 0) --love.mouse.isDown("l")
 	treeviewHandler.leftclick = treeviewHandler.leftdown and not prev
 end
-
-treeviewHandler.updateInput()
 
 -- root being a single element and getName,
 -- getChild, getSibling being functions returning the respective data or nil
@@ -38,7 +38,7 @@ treeviewHandler.updateInput()
 function treeview(x, y, w, h, root, getName, getChild, getSibling, newParentCallback)
 
 	treeviewHandler.checkMouse = treeviewHandler.mx >= x and treeviewHandler.mx <= x+w and treeviewHandler.my >= y and treeviewHandler.my <= y+h
-	if not treeviewHandler.shift and treeviewHandler.checkMouse and treeviewHandler.leftclick then root.__treeview_selected = nil end
+	if not treeviewHandler.shift and treeviewHandler.checkMouse and treeviewHandler.leftclick and root then root.__treeview_selected = nil end
 	if not treeviewHandler.checkMouse then
 		treeviewHandler.hovered = nil
 	end
@@ -48,6 +48,9 @@ function treeview(x, y, w, h, root, getName, getChild, getSibling, newParentCall
 	love.graphics.rectangle("fill",x,y,w,h)
 	love.graphics.setColor(treeviewHandler.backColor)
 	love.graphics.rectangle("fill",x+1,y+1,w-2,h-2)
+
+	-- Don't show anything if there's nothing to show
+	if not root then return end
 
 	-- Element Recursion
 	treeviewHandler.selectElement = nil
@@ -66,7 +69,7 @@ function treeview(x, y, w, h, root, getName, getChild, getSibling, newParentCall
 		end 
 	end
 
-	return root.__treview_selected, treeviewHandler.hovered
+	return root.__treeview_selected, treeviewHandler.hovered
 end
 
 
@@ -148,6 +151,7 @@ function listview(x, y, w, h, list, getName)
 	states.setScissor(x+3, y+3, w-6, h-5) 
 	x = x + 4
 	y = y + 4
+	--print("Drawing list of " .. #list .. " elements")
 	local hovered = nil
 	local selectElement = 0
 	for i = 1,#list do 

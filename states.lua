@@ -23,7 +23,7 @@ states = {
 		skelx = 0, skely = 0,
 		dragging = false, dragFromX = 0, dragFromY = 0, dragDifX = 0, dragDifY = 0, dragJustStarted = false, dragCallback = nil, dropCallback = nil,
 	},
-	mouse = nil,
+	mouse = inactiveMouse,
 	transformation = {0,0, 0, 1,1},
 	-- Misc
 	scissorX1 = 0,
@@ -76,7 +76,6 @@ end
 
 function states.keypressed(key)
 	-- Propagate to current state
-	print("Key Event: " .. key)
 	if states.objects[states.current].keypressed then states.objects[states.current].keypressed(key) end
 end
 
@@ -140,7 +139,11 @@ function states.update()
 		end
 	else
 		-- No Transition -> let states update
-		states.mouse = states.activeMouse
+		if textInputHandler.active or dialogHandler.active then
+			states.mouse = states.inactiveMouse
+		else
+			states.mouse = states.activeMouse
+		end
 		states.objects[states.current].update()
 	end
 	states.mouse.mz = 0
