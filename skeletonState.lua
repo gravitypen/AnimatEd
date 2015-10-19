@@ -37,8 +37,20 @@ function skeletonState.keypressed(key)
 	elseif key == "delete" then
 		if skeletonState.selectedElement then
 			local element = skeletonState.selectedElement
-			questionDialog("Do you really want to delete '" .. element.name .. "' and all its childs?", 
-				function() animator.deleteElement(element); skeletonState.hoveredElement = nil; skeletonState.selectedElement = nil; end, nil)
+			if element.name ~= "ROOT" then
+				questionDialog("Do you really want to delete '" .. element.name .. "' and all its childs?", 
+					function() animator.deleteElement(element); skeletonState.hoveredElement = nil; skeletonState.selectedElement = nil; end, nil)
+			else
+				infoDialog("Can't delete root bone!")
+			end
+		end
+	elseif key == "pageup" then
+		if skeletonState.selectedElement and skeletonState.selectedElement.tp == "bone" then
+			skeletonState.selectedElement.drawOverParent = true
+		end
+	elseif key == "pagedown" then
+		if skeletonState.selectedElement and skeletonState.selectedElement.tp == "bone" then
+			skeletonState.selectedElement.drawOverParent = false
 		end
 	end
 end
@@ -135,19 +147,22 @@ end
 
 	function skeletonState.selectElement(e)
 		if e then print("Selecting Element " .. e.name) else print("Deselecting Element") end
-		skeletonState.selectedElement = e
-		skeletonState.currentSkeleton.rootChild.childs[1].__treeview_selected = e
+		if skeletonState.currentSkeleton then
+			skeletonState.selectedElement = e
+			skeletonState.currentSkeleton.rootChild.childs[1].__treeview_selected = e
+		end
 	end
 
 	function skeletonState.moveBone(bone, dx, dy, moveStartPos, moveEndPos)
 		local pose = skeletonState.currentSkeleton.defaultPose
 		-- Transform dx,dy to make sure bone moves relative to screen
 		-- Rotate by -bone.angle 
-		local ang = -bone.parent.__angle
-		local s = math.sin(ang)
-		local c = math.cos(ang)
-		local newdx = c*dx - s*dy
-		local newdy = -s*dx - c*dy
+		local s, c, ang, newdx, newdy
+		ang = -bone.parent.__angle
+		s = math.sin(ang)
+		c = math.cos(ang)
+		newdx = c*dx - s*dy
+		newdy = -s*dx - c*dy
 		-- Get Values
 		local state = pose.state[bone.id]
 		local x1 = moveStartPos and state[1]+newdx or state[1]
@@ -224,11 +239,13 @@ function skeletonState.draw()
 				animator.drawPose(skel.defaultPose, states.windowW*0.5, states.windowH*0.5, 0.0, skeletonState.zoom, skeletonState.zoom, 0.3, false)
 				animator.reapplyPreviousPoseTransformation()
 				animator.drawDebugSkeleton(skel)
+				animator.drawDebugCross(skel.rootChild.childs[1].__x, skel.rootChild.childs[1].__y)
 				animator.undoPoseTransformation()
 			else
 				-- Image Editing
 				animator.drawBoundingBoxes = true
 				animator.drawPose(skel.defaultPose, states.windowW*0.5, states.windowH*0.5, 0.0, skeletonState.zoom, skeletonState.zoom, 1.0, false)
+				animator.drawDebugCross(skel.rootChild.childs[1].__x, skel.rootChild.childs[1].__y)
 				animator.drawBoundingBoxes = false
 			end
 		else
@@ -236,6 +253,7 @@ function skeletonState.draw()
 			animator.drawPose(skel.defaultPose, states.windowW*0.5, states.windowH*0.5, 0.0, skeletonState.zoom, skeletonState.zoom, 1.0, false)
 			animator.reapplyPreviousPoseTransformation()
 			animator.drawDebugSkeleton(skel)
+			animator.drawDebugCross(skel.rootChild.childs[1].__x, skel.rootChild.childs[1].__y)
 			animator.undoPoseTransformation()
 		end
 		states.registerTransformation()
@@ -274,6 +292,8 @@ function skeletonState.draw()
 							-- Apply as currently edited skeleton
 							skeletonState.currentSkeleton = skel
 							skeletonState.editing = true
+							animator.newBone("ROOT", skel)
+							print("New Skeleton's Path: " .. skel.projectPath)
 						end
 					end, nil, nil)
 				end
@@ -300,6 +320,7 @@ function skeletonState.draw()
 						if e.bone.images[i] == e then return e.bone.images[i+1] end
 					end
 				else
+					if not e.parent.childs then return nil end --root bone has no siblings 
 					for i=1,#e.parent.childs-1 do
 						if e.parent.childs[i] == e then return e.parent.childs[i+1] end
 					end
@@ -319,7 +340,7 @@ function skeletonState.draw()
 		skeletonState.highlight(skeletonState.selectedElement)
 
 		-- Images of this Skeleton
-		local sel, hover = listview(states.windowW-220,1,220,states.windowH-50, skel.imageList)
+		local sel, hover = listview(states.windowW-220,1,220,states.windowH-100, skel.imageList)
 		skeletonState.selectedImage = sel
 
 		-- Add Bone
@@ -328,7 +349,7 @@ function skeletonState.draw()
 			skeletonState.mode = skeletonState.modes.bones
 			-- Create Bone
 			local parent = skeletonState.selectedElement
-			if not parent or parent.tp ~= "bone" then parent = skeletonState.currentSkeleton end
+			if not parent or parent.tp ~= "bone" then parent = skeletonState.currentSkeleton.rootChild.childs[1] end
 			textInput("Bone Name", "", function(s)
 				skeletonState.selectedElement = animator.newBone(s, parent)
 			end)
@@ -344,6 +365,11 @@ function skeletonState.draw()
 			end
 		end
 
+		-- Update Images
+		if button(states.windowW-110, states.windowH-75, 140, 25, "Refresh") then
+			animator.refreshImages(skel)
+		end
+
 		-- Make sure no element stays hovered
 		skeletonState.hoveredElement = nil
 
@@ -355,13 +381,15 @@ end
 function skeletonState.highlight(e)
 	if e then
 		if e.tp == "bone" then
-			animator.reapplyPreviousPoseTransformation()
-			animator.drawSingleDebugBone(e)
-			animator.undoPoseTransformation()
+			if e.name ~= "#root" then
+				animator.reapplyPreviousPoseTransformation()
+				animator.drawSingleDebugBone(e)
+				animator.undoPoseTransformation()
+				e.__highlight = 1
+			end
 			for i = 1,#e.images do
 				e.images[i].__highlight = 1 
 			end
-			e.__highlight = 1
 		else
 			animator.reapplyPreviousPoseTransformation()
 			animator.drawSingleDebugBone(e.bone)

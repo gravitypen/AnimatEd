@@ -253,15 +253,22 @@ end
 -- Checks the images folder within the skeleton's assigned directory and reloads any images that weren't
 -- previously loaded
 function animator.refreshImages(skel)
-    lfs.chdir(skel.projectPath .. "/images")
-    for originalFile in lfs.dir(".") do
-        local file = string.lower(originalFile) 
-        if not skel.imageList[file] then
-            local ext = string.sub(file, -4)
-            if ext == ".png" or ext == ".jpg" or ext == ".bmp" then
-                animator.addImageFile(skel, file)
+    print("Refreshing, project path is " .. skel.projectPath .. " for skeleton ".. skel.name)
+    success = lfs.chdir(skel.projectPath .. "/images")
+    if success then 
+        for originalFile in lfs.dir(".") do
+            local file = string.lower(originalFile) 
+            if not skel.imageList[file] then
+                local ext = string.sub(file, -4)
+                if ext == ".png" or ext == ".jpg" or ext == ".bmp" then
+                    animator.addImageFile(skel, file)
+                end
             end
         end
+        print("Refreshing done!")
+    else
+        if infoDialog then infoDialog("Path '" .. skel.projectPath .. "' either does not exist, or has no images folder!") end
+        print("Error loading images for skeleton " .. skel.name .. ": Path '" .. skel.projectPath .. "' does not exist!")
     end
 end
 
@@ -642,11 +649,11 @@ function animator.drawSkeleton(skel, x, y, angle, scalex, scaley, alpha, debug)
     alpha = alpha or 1
     -- Apply Values
     local bone = skel.rootChild
-    bone.__x = x
-    bone.__y = y
-    bone.__angle = angle
-    bone.__alpha = alpha
-    bone.__scX = scalex
+    bone.__x = x + bone.x
+    bone.__y = y + bone.y
+    bone.__angle = angle + bone.angle
+    bone.__alpha = alpha * bone.alpha
+    bone.__scX = scalex 
     bone.__scY = scaley
     local bx = scalex
     local by = scaley
@@ -769,6 +776,8 @@ end
 -- updated and propagated accordingly!
 function animator.drawDebugSkeleton(skel)
     local bone = skel.rootChild
+    --animator.drawDebugCross(bone.__x, bone.__y)
+    --animator.drawDebugBone(bone)
     -- Recursive Drawing
     for i = 1,#bone.childs do
         animator.drawDebugBone(bone.childs[i])
@@ -819,6 +828,13 @@ function animator.drawDebugTriangle(x, y, angle, length)
     -- Draw Triangle
     love.graphics.setColor(0,255,0,128)
     love.graphics.polygon("line", x1,y1, x2,y2, x3,y3)
+end
+
+function animator.drawDebugCross(x, y)
+    local off = 20
+    love.graphics.setColor(60,60,60,255)
+    love.graphics.line(x-off, y-off, x+off, y+off)
+    love.graphics.line(x-off, y+off, x+off, y-off)
 end
 
 

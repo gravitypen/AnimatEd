@@ -171,6 +171,12 @@ function questionDialog(caption, yesCallback, noCallback)
     }
 end
 
+function infoDialog(caption)
+    dialogHandler.active = true
+    dialogHandler.caption = caption
+    dialogHandler.buttons = { {caption = "OK", callback = nil, row = 1 }}
+end
+
 function drawDialog()
     if dialogHandler.active then
         local oldMouse = states.mouse
