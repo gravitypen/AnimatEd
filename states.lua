@@ -87,7 +87,9 @@ function states.update()
 	states.windowW = love.window.getWidth()
 	states.windowH = love.window.getHeight()
 	-- Mouse
+	local oldx, oldy = states.activeMouse.x, states.activeMouse.y
 	states.activeMouse.x, states.activeMouse.y = love.mouse.getPosition()
+	states.activeMouse.mx, states.activeMouse.my = states.activeMouse.x - oldx, states.activeMouse.y - oldy
 	states.activeMouse.leftclick = states.getKeyChange(states.activeMouse.leftclick, love.mouse.isDown("l"))
 	states.activeMouse.rightclick = states.getKeyChange(states.activeMouse.rightclick, love.mouse.isDown("r"))
 	-- Mouse Coordinates in Skeleton Space (so far neglecting angle, as it's always 0.0)

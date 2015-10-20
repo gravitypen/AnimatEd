@@ -19,6 +19,7 @@ function love.load()
     animator.load()
     test.init()
     states.load()
+    loadGrid()
     --love.graphics.setFont(24)
 end
 
@@ -94,3 +95,57 @@ function printOut(s, changeIndent)
 end
 
 
+
+
+function loadGrid()
+    gridShader = love.graphics.newShader([[
+        uniform float cameraScale;
+        uniform vec2 cameraPos;
+        uniform float spacing = 100.0;
+        uniform vec4 gridColor = vec4(0.7, 0.7, 0.7, 1.0); 
+
+        const float thickness = 1.0;
+        //const float smoothness = 2.0;
+
+        float gridFunc(float coord, float thickness) {
+            return 1.0 - step(1.0/spacing*thickness, coord);
+            //return smoothstep(highEdge - 1.0/spacing*smoothness, highEdge, coord);
+        }
+
+        vec4 effect(vec4 color, Image texture, vec2 textureCoords, vec2 screenCoords) {
+            vec2 realCoords = (screenCoords + cameraPos * cameraScale * vec2(1.0, -1.0)) / spacing / cameraScale;
+            float gridVal = gridFunc(fract(realCoords.x), thickness/cameraScale) + gridFunc(fract(realCoords.y), thickness/cameraScale);
+            float originMarkerFactor = 1.5;
+            gridVal += gridFunc(abs(realCoords.x), thickness*originMarkerFactor/cameraScale) + gridFunc(abs(realCoords.y), thickness*originMarkerFactor/cameraScale);
+            return mix(vec4(0.0), gridColor, vec4(clamp(gridVal, 0.0, 1.0)));
+        }
+    ]])
+end
+
+function drawGrid(x, y, scale)
+    local bgColor = editor.backColor
+    local gridColor = {0,0,0,128}
+    local spacing = 1
+    while scale*spacing <= 16 do spacing = spacing * 4 end
+    love.graphics.setColor(bgColor)
+    love.graphics.rectangle("fill", 0, 0, states.windowW, states.windowH)
+    love.graphics.setShader(gridShader)
+    gridShader:send("cameraScale", scale or 1.0)
+    local sx, sy = x - love.window.getWidth()/2/scale, y + love.window.getHeight()/2/scale
+    gridShader:send("cameraPos", {sx, sy})
+    -- fine grid
+    gridShader:send("gridColor", {0,0,0,0.25})
+    gridShader:send("spacing", 16)
+    love.graphics.rectangle("fill", 0, 0, love.window.getWidth(), love.window.getHeight())
+    -- sparse grid
+    gridShader:send("gridColor", {0,0,0,0.75})
+    gridShader:send("spacing", 64)
+    love.graphics.rectangle("fill", 0, 0, love.window.getWidth(), love.window.getHeight())
+    -- x & y axis
+    sx = states.windowW/2 - x*scale
+    sy = states.windowH/2 - y*scale
+    love.graphics.setShader()
+    love.graphics.setColor(0,0,0,255)
+    love.graphics.rectangle("fill", 0, sy-2, states.windowW, 4)
+    love.graphics.rectangle("fill", sx-2, 0, 4, states.windowH)
+end

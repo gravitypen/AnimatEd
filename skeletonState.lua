@@ -13,6 +13,8 @@ skeletonState = {
 	hoveredElement = nil,
 	selectedElement = nil,
 	editing = false,
+	camX = 0,
+	camY = 0,
 }
 
 
@@ -99,6 +101,7 @@ function skeletonState.update()
 	end
 
 	-- Mouse Selection
+	local ctrl = states.getKeyDown("lctrl")
 	if skeletonState.editing then 
 
 		local hover, selTrg
@@ -124,24 +127,41 @@ function skeletonState.update()
 		end
 
 		-- Drag & Drop
-		if states.mouse.dragJustStarted then
-			if hover then
-				if skeletonState.mode == skeletonState.modes.bones then
-					-- Bone Editing
-					if selTrg == 1 then states.mouse.dragCallback = function(dx,dy) skeletonState.moveBone(hover, dx, dy, true, false) end end
-					if selTrg == 2 then states.mouse.dragCallback = function(dx,dy) skeletonState.moveBone(hover, dx, dy, false, true) end end
-					if selTrg == 3 then states.mouse.dragCallback = function(dx,dy) skeletonState.moveBone(hover, dx, dy, true, true) end end
-					states.mouse.dropCallback = nil
-					skeletonState.selectElement(hover)
-				else
-					-- Image Editing
-					states.mouse.dragCallback = function(dx,dy) skeletonState.moveImage(hover, dx, dy) end
-					states.mouse.dropCallback = nil
-					skeletonState.selectElement(hover)
+		if not ctrl then
+			if states.mouse.dragJustStarted then
+				-- Drag Bone or Image
+				if hover then
+					if skeletonState.mode == skeletonState.modes.bones then
+						-- Bone Editing
+						if selTrg == 1 then states.mouse.dragCallback = function(dx,dy) skeletonState.moveBone(hover, dx, dy, true, false) end end
+						if selTrg == 2 then states.mouse.dragCallback = function(dx,dy) skeletonState.moveBone(hover, dx, dy, false, true) end end
+						if selTrg == 3 then states.mouse.dragCallback = function(dx,dy) skeletonState.moveBone(hover, dx, dy, true, true) end end
+						states.mouse.dropCallback = nil
+						skeletonState.selectElement(hover)
+					else
+						-- Image Editing
+						states.mouse.dragCallback = function(dx,dy) skeletonState.moveImage(hover, dx, dy) end
+						states.mouse.dropCallback = nil
+						skeletonState.selectElement(hover)
+					end
 				end
 			end
 		end
 	end
+
+	if ctrl and states.mouse.dragJustStarted then
+		-- Move Camera
+		states.mouse.dragCallback = function(dx,dy) 
+			skeletonState.camX = skeletonState.camX - states.mouse.mx/skeletonState.zoom --dx/skeletonState.zoom
+			skeletonState.camY = skeletonState.camY - states.mouse.my/skeletonState.zoom --dy/skeletonState.zoom
+			print("Dragging by dif " .. dx .. "," .. dy) 
+		end
+		states.mouse.dropCallback = nil
+	end
+
+	-- Clamp Camera Position
+	skeletonState.camX = clamp(skeletonState.camX, -8192, 8192)
+	skeletonState.camY = clamp(skeletonState.camY, -8192, 8192)
 
 end
 
@@ -223,20 +243,23 @@ end
 function skeletonState.draw()
 
 	-- Back
-	love.graphics.setColor(editor.backColor)
-	love.graphics.rectangle("fill", 0, 0, states.windowW, states.windowH)
+	--love.graphics.setColor(editor.backColor)
+	--love.graphics.rectangle("fill", 0, 0, states.windowW, states.windowH)
+	drawGrid(skeletonState.camX, skeletonState.camY, skeletonState.zoom)
 
 	-- Selected Skeleton
 	local skel = skeletonState.currentSkeleton
 	if skel then
 		-- Mode
+		local sx = states.windowW*0.5 - skeletonState.camX*skeletonState.zoom
+		local sy = states.windowH*0.5 - skeletonState.camY*skeletonState.zoom
 		if states.getKeyDown("v") then
 			-- Press V to see character fully
-			animator.drawPose(skel.defaultPose, states.windowW*0.5, states.windowH*0.5, 0.0, skeletonState.zoom, skeletonState.zoom, 1.0, states.getKeyDown("d"))			
+			animator.drawPose(skel.defaultPose, sx, sy, 0.0, skeletonState.zoom, skeletonState.zoom, 1.0, states.getKeyDown("d"))			
 		elseif skeletonState.editing then
 			if skeletonState.mode == skeletonState.modes.bones then
 				-- Bone Editing
-				animator.drawPose(skel.defaultPose, states.windowW*0.5, states.windowH*0.5, 0.0, skeletonState.zoom, skeletonState.zoom, 0.3, false)
+				animator.drawPose(skel.defaultPose, sx, sy, 0.0, skeletonState.zoom, skeletonState.zoom, 0.3, false)
 				animator.reapplyPreviousPoseTransformation()
 				animator.drawDebugSkeleton(skel)
 				animator.drawDebugCross(skel.rootChild.childs[1].__x, skel.rootChild.childs[1].__y)
@@ -244,13 +267,15 @@ function skeletonState.draw()
 			else
 				-- Image Editing
 				animator.drawBoundingBoxes = true
-				animator.drawPose(skel.defaultPose, states.windowW*0.5, states.windowH*0.5, 0.0, skeletonState.zoom, skeletonState.zoom, 1.0, false)
+				animator.drawPose(skel.defaultPose, sx, sy, 0.0, skeletonState.zoom, skeletonState.zoom, 1.0, false)
+				animator.reapplyPreviousPoseTransformation()
 				animator.drawDebugCross(skel.rootChild.childs[1].__x, skel.rootChild.childs[1].__y)
+				animator.undoPoseTransformation()
 				animator.drawBoundingBoxes = false
 			end
 		else
 			-- Overview
-			animator.drawPose(skel.defaultPose, states.windowW*0.5, states.windowH*0.5, 0.0, skeletonState.zoom, skeletonState.zoom, 1.0, false)
+			animator.drawPose(skel.defaultPose, sx, sy, 0.0, skeletonState.zoom, skeletonState.zoom, 1.0, false)
 			animator.reapplyPreviousPoseTransformation()
 			animator.drawDebugSkeleton(skel)
 			animator.drawDebugCross(skel.rootChild.childs[1].__x, skel.rootChild.childs[1].__y)

@@ -734,7 +734,7 @@ function animator.drawImage(img)
         if img.__highlight > 0 then
             img.__highlight = img.__highlight - 1
         end
-        love.graphics.setColor(255,255,255, 180)
+        love.graphics.setColor(255,255,255, 220)
     else
         love.graphics.setColor(255,255,255, 255*bone.__alpha * img.alpha)
     end
@@ -771,7 +771,7 @@ end
 
 
 
-
+animator.debugAlphaFactor = 1.0
 -- always call animator.drawSkeleton() (or drawPose()) beforehand to make sure all bone transformations are
 -- updated and propagated accordingly!
 function animator.drawDebugSkeleton(skel)
@@ -810,7 +810,7 @@ function animator.drawDebugBoneImages(bone)
 end
 
 function animator.drawDebugLine(x1, y1, x2, y2, highlight)
-    love.graphics.setColor(0, highlight and 255 or 180, 0, hightlight and 255 or 180)
+    love.graphics.setColor(0, highlight and 255 or 180, 0, animator.debugAlphaFactor * (hightlight and 180 or 128))
     -- Line
     love.graphics.line(x1, y1, x2, y2)
     -- Handles
@@ -826,13 +826,13 @@ function animator.drawDebugTriangle(x, y, angle, length)
     local x2,y2 = 2*x-x1, 2*y-y1
     local x3,y3 = x + length*math.sin(angle), y - length*math.cos(angle)
     -- Draw Triangle
-    love.graphics.setColor(0,255,0,128)
+    love.graphics.setColor(0,255,0,255*animator.debugAlphaFactor)
     love.graphics.polygon("line", x1,y1, x2,y2, x3,y3)
 end
 
 function animator.drawDebugCross(x, y)
     local off = 20
-    love.graphics.setColor(60,60,60,255)
+    love.graphics.setColor(60,60,60,255*animator.debugAlphaFactor)
     love.graphics.line(x-off, y-off, x+off, y+off)
     love.graphics.line(x-off, y+off, x+off, y-off)
 end
@@ -843,7 +843,7 @@ function animator.drawDebugImage(img)
     local image = img.skel.imageList[img.name]
     local bone = img.bone
     -- Draw
-    love.graphics.setColor(0,255,0, 128)
+    love.graphics.setColor(0,255,0, 255*animator.debugAlphaFactor)
     love.graphics.draw(
         image, 
         bone.__x + img.x * bone.baseRx + img.y * bone.baseFx, 
