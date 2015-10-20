@@ -738,16 +738,22 @@ function animator.drawImage(img)
     else
         love.graphics.setColor(255,255,255, 255*bone.__alpha * img.alpha)
     end
+    love.graphics.push()
+    love.graphics.translate(img.__x, img.__y)
+    love.graphics.rotate(bone.__angle)
+    love.graphics.scale(bone.__scX, bone.scaleY)
+    love.graphics.rotate(img.angle)
     love.graphics.draw(
         image, 
-        img.__x, 
-        img.__y, 
-        img.__angle, 
-        img.__scX, 
-        img.__scY, 
+        0, 
+        0, 
+        0, 
+        img.scaleX, 
+        img.scaleY, 
         img.offX * image:getWidth(), 
         img.offY * image:getHeight()
     )
+    love.graphics.pop()
     if animator.drawBoundingBoxes then
         animator.drawBoundingBox(
             bone.__x + img.x * bone.baseRx + img.y * bone.baseFx * bone.scaleY, 
