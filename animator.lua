@@ -363,9 +363,9 @@ function animator.getBoneByName(skel, name)
     return nil
 end
 
-function animator.reorderBones(bone, newParent)
+function animator.reorderBones(bone, newParent, preserveAbsoluteTransformation)
     if bone == newParent or newParent.tp == "img" then return end
-    if bone.tp == "img" then animator.reorderImage(bone, newParent) return end
+    if bone.tp == "img" then animator.reorderImage(bone, newParent, preserveAbsoluteTransformation) return end
     print("Reordering Bone " .. bone.name .. " under " .. newParent.name)
     -- Check whether newParent is sub node of bone
     local tmp = newParent.parent
@@ -378,12 +378,16 @@ function animator.reorderBones(bone, newParent)
         -- Assign to new Parent
         table.insert(newParent.childs, bone)
         bone.parent = newParent
-        -- Retransform Bone to make sure it doesn't change orientation....?
-        -- ...
+        -- Retransform Bone to make sure it doesn't change orientation
+        if preserveAbsoluteTransformation then
+            -- Position
+            -- Angle
+            -- Scale
+        end
     end 
 end
 
-function animator.reorderImage(img, newParent)
+function animator.reorderImage(img, newParent, preserveAbsoluteTransformation)
     if img.tp ~= "img" or newParent.tp ~= "bone" then return end
     print("Reordering " .. img.name .. " under " .. newParent.name)
     -- First remove image from its parent
@@ -394,8 +398,26 @@ function animator.reorderImage(img, newParent)
     -- Assign to new Parent
     table.insert(newParent.images, img)
     img.bone = newParent
-    -- Retransform Image to make sure it doesn't change orientation....?
-    -- ...
+    -- Retransform Image to make sure it doesn't change orientation
+    if preserveAbsoluteTransformation then
+        -- img.__x = bone.__x + img.x * bone.baseRx + img.y * bone.baseFx * bone.scaleY
+        -- img.__y = bone.__y + img.x * bone.baseRy + img.y * bone.baseFy * bone.scaleY
+        -- absX = bX + imgX * rX + imgY * fX * scX
+        -- absY = bY + imgX * rY + imgY * fY * scY
+        -- imgX = -(bX - absX + imgY*fX*scX)/rX
+        -- absY = bY - rY*(bX - absX + imgY*fX*scX)/rX + imgY * fY * scY
+        -- imgY*fY*scY - (bX - absX + imgY*fX*scX)*rY/rX = absY - bY
+        -- imgY*fY*scY - imgY*fX*scX*rY/rX = absY - bY + (bX - absX)*rY/rX
+        -- imgY*(fY*scY - fX*scX*rY/rX) = ...
+        -- imgY = (absY - bY + (bX - absX)*rY/rX) / (fY*scY - fX*scX*rY/rX)
+        --img.x = img.__x - newParent.x
+        --img.y = img.__y - newParent.y
+        local bone = newParent
+        img.y = (img.__y - bone.__y + (bone.__x - img.__x)*bone.baseRy/bone.baseRx) / (bone.baseFy*bone.scaleY - bone.baseFx*bone.scaleY*bone.baseRy/bone.baseRx)
+        img.x = -(bone.__x - img.__x + img.y*bone.baseFx*bone.scaleY)/bone.baseRx
+        -- Angle __ang = p.ang + ang <=> ang = __ang - p.ang
+        img.angle = img.__angle - newParent.__angle
+    end
 end
 
 -- This should be called when new bones/images have been added to a skeleton, to make sure the animation
@@ -742,12 +764,11 @@ function animator.drawImage(img)
     love.graphics.translate(img.__x, img.__y)
     love.graphics.rotate(bone.__angle)
     love.graphics.scale(bone.__scX, bone.scaleY)
-    love.graphics.rotate(img.angle)
     love.graphics.draw(
         image, 
         0, 
         0, 
-        0, 
+        img.angle, 
         img.scaleX, 
         img.scaleY, 
         img.offX * image:getWidth(), 

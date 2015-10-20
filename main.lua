@@ -139,7 +139,7 @@ function drawGrid(x, y, scale)
     love.graphics.rectangle("fill", 0, 0, love.window.getWidth(), love.window.getHeight())
     -- sparse grid
     gridShader:send("gridColor", {0,0,0,0.75})
-    gridShader:send("spacing", 64)
+    gridShader:send("spacing", 80)
     love.graphics.rectangle("fill", 0, 0, love.window.getWidth(), love.window.getHeight())
     -- x & y axis
     sx = states.windowW/2 - x*scale

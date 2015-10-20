@@ -353,7 +353,13 @@ function skeletonState.draw()
 				end
 				return nil
 			end,
-			function(c,p) animator.reorderBones(c, p) end
+			function(c,p) 
+				animator.reorderBones(c, p, true) 
+				-- apply transformation stuff to pose (since images are being retransformed to keep their absolute position and angle)
+				if c.tp == "img" then
+					animator.setPoseImage(skeletonState.currentSkeleton.defaultPose, c, c.x, c.y, c.angle)
+				end
+			end
 		)
 		if hover then
 			skeletonState.hoveredElement = hover
