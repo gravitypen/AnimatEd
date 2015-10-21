@@ -1,0 +1,218 @@
+Rem Project: imageClamp
+Rem Created: Sunday, October 18, 2015
+
+Rem ***** Main Source File *****
+
+
+sync on
+sync rate 0
+sync
+
+
+global opt_file as string = "imageClampSettings.txt"
+global opt_offset 
+
+loadOptions()
+
+c$ = cl$()
+
+if mid$(c$,1) = chr$(34)
+    c$ = right$(left$(c$,len(c$)-1), len(c$)-2)
+endif
+
+if len(c$)>0 
+    print "Command Line: '", c$ , "', checking what to do" : sync
+    rem File or Directory?
+    if file exist(c$)
+        handleFile(c$)
+    else
+        if path exist(c$)
+            handleDirectory(c$)
+        endif
+    endif
+    print "------"
+    print "Done!"
+else
+    print "Nothing to do. Drag file or directory on program." 
+    print "To Change Settings, press Enter." : sync
+    repeat
+        sync
+    until scancode()
+    if returnkey()
+        changeOptions()
+    endif    
+    end
+endif
+
+sync
+wait key
+end
+
+
+
+
+function handleDirectory(d$)
+    set dir d$
+    perform checklist for files
+    files = checklist quantity()
+    print "Processing Directory '", d$, "' with ", files-2, " files"
+    print " - - - - - - - - - - - - - - - -" : sync
+    for f = 3 to files
+        f$ = checklist string$(f)
+        e$ = lower$(right$(f$,4))
+        if e$ = ".jpg" or e$ = ".bmp" or e$ = ".png" or e$ = ".tga" or e$ = "tiff" 
+            handleFile(f$)
+        endif
+    next
+endfunction
+
+function handleFile(f$)
+    if stringContains(f$, "_cropped.")
+        print "Ignoring '", f$, "' as it's already cropped" : sync
+        exitfunction
+    endif
+    print "Processing '", f$ , "'..." : sync
+    trg$ = left$(f$,len(f$)-4) + "_cropped" + right$(f$,4)
+    if file exist(trg$)
+        print "  ", trg$, " alreaedy exists, aborting." : sync
+        exitfunction 0
+    endif
+    print "  Loading image" : sync
+    load image f$, 1, 1
+    make memblock from image 1, 1
+    rem Find Sides
+    print "  Scanning image" : sync
+    w = image width(1)
+    h = image height(1)
+        for L = 1 to w
+            if checkArea(L-1,0,L-1,h-1) then exit
+        next
+        for R = w to 1 step -1
+            if checkArea(R-1,0,R-1,h-1) then exit
+        next
+        for T = 1 to h
+            if checkArea(0,T-1,w-1,T-1) then exit
+        next
+        for B = h to 1 step -1
+            if checkArea(0,B-1,w-1,B-1) then exit
+        next
+    rem Bounds
+    offset = opt_offset
+    if B < T then T = offset : B = offset
+    if R < L then L = offset : R = offset
+    L = L - offset
+    R = R + offset
+    T = T - offset
+    B = B + offset
+    if T < 1 then T = 1
+    if B > h then B = h
+    if L < 1 then L = 1
+    if R > w then R = w
+    rem Apply
+    neww = R-L+1
+    newh = B-T+1
+    quot# = (neww*newh)/(1.0*w*h)
+    print "  Applying new dimensions (size ", neww, "x", newh, ", ", str$(100*quot#,0), "% of old size)" : sync
+    size = 12 + 4*neww*newh
+    make memblock 2, size
+    write memblock dword 2, 0, neww
+    write memblock dword 2, 4, newh
+    write memblock dword 2, 8, 32
+    p = 12
+    for y = 1 to newh
+        for x = 1 to neww
+            srcp = 12 + 4*(L+x-2 + w*(T+y-2))
+            write memblock dword 2, p, memblock dword(1, srcp)
+            inc p, 4
+        next
+    next
+    make image from memblock 2, 2
+    print "  Saving image as ", trg$ : sync
+    save image trg$, 2
+    delete image 2
+    delete memblock 2
+    delete image 1
+    delete memblock 1
+    print "  Done!" : sync
+endfunction 1
+
+function checkArea(x1,y1,x2,y2)
+    w = memblock dword(1,0)
+    r = 0
+    for y = y1 to y2
+        p = 12 + 4*(x1 + w*y)
+        for x = x1 to x2
+            c = memblock dword(1,p)
+            if c >> 24 <> 0 then exitfunction 1
+            inc p, 4
+        next
+    next
+endfunction 0
+
+
+function loadOptions()
+    set dir mydocdir$()
+    f$ = opt_file
+    if file exist(f$)
+        open to read 1, f$
+            read string 1, offset$ : opt_offset = val(offset$)
+        close file 1
+    else
+        opt_offset = 2
+        saveOptions()
+    endif
+endfunction
+
+function saveOptions()
+    f$ = opt_file
+    if file exist(f$) then delete file f$
+    open to write 1, f$
+        write string 1, str$(opt_offset)
+    close file 1
+endfunction
+
+
+function changeOptions()
+    saved = 0
+    do
+        cls
+        print "Settings"
+        print
+        print "(1) Offset: ", opt_offset
+        print
+        if saved then print "Saved!" else print "S to Save"
+        
+        s = scancode()
+        if s
+            if s = 2 
+                saved = 0
+                input ">", newOffset
+                opt_offset = newOffset
+            endif
+            if s = 31 
+                saveOptions()
+                while scancode() : endwhile
+                saved = 1
+            endif
+        endif
+        
+        sync
+    loop
+endfunction
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
