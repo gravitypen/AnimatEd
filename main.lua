@@ -17,6 +17,8 @@ require "animationState"
 function love.load()
     curveEditor.init()
     animator.load()
+    skeletonState.load()
+    skeletonState.loadSkeletons()
     test.init()
     states.load()
     loadGrid()

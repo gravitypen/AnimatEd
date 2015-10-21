@@ -14,6 +14,12 @@ function animator.load()
     animator.newestBone = nil
     animator.newestImage = nil
     animator.poseCount = 0
+    animator.saveLists = {
+        skeleton = {"tp", "name", "defaultPose", "boneCount", "imgCount", "elementMap"},
+        pose = {"tp", "name", "id", "state"},
+        bone = {"tp", "name", "id", "parentID", "drawOverParent", "x", "y", "alpha", "angle", "scaleX", "scaleY", "length"},
+        img = {"tp", "name", "id", "idNum", "boneID", "scaleX", "scaleY", "x", "y", "angle", "alpha"},
+    }
 end
 
 
@@ -22,7 +28,9 @@ end
 -- Skeletons are the basis of bone animations, a skeleton is basically just a set of bones and images with a predefined, static hierarchy
 function animator.newSkeleton(name, path)
     local skel = {
+        saveList = animator.saveLists.skeleton,
         tp="skeleton",
+        id=name,
         name=name, 
         projectPath=path, 
         defaultPose = nil,
@@ -45,6 +53,7 @@ end
 function animator.newPose(skel, name)
     animator.poseCount = animator.poseCount + 1
     local pose = {
+        saveList = animator.saveLists.pose,
         tp="pose",
         name = name,
         id=animator.poseCount,
@@ -75,11 +84,13 @@ function animator.newBone(name, parent)
     skel.boneCount = skel.boneCount + 1
     -- Create Bone
     local node = {
+        saveList = animator.saveLists.bone,
         tp="bone",
         skel=skel,
         name=name, 
         id="b" .. skel.boneCount,
         parent=parent, 
+        parentID = parent.id,
         images={}, 
         childs={}, 
         drawOverParent = false,
@@ -124,12 +135,14 @@ function animator.newImage(imgName, bone)
     bone.skel.imgCount = bone.skel.imgCount + 1
     -- Create new instance of existing image as child of Bone
     local img = {
+        saveList = animator.saveLists.img,
         tp="img",
         name=imgName, 
         object=bone.skel.imageList[imgName],
         id = "i" .. bone.skel.imgCount,
         idNum = bone.skel.imgCount,
         bone=bone, 
+        boneID=bone.id,
         skel=bone.skel,
         scaleX=1.0, 
         scaleY=1.0, 
@@ -378,6 +391,7 @@ function animator.reorderBones(bone, newParent, preserveAbsoluteTransformation)
         -- Assign to new Parent
         table.insert(newParent.childs, bone)
         bone.parent = newParent
+        bone.parentID = newParent.id
         -- Retransform Bone to make sure it doesn't change orientation
         if preserveAbsoluteTransformation then
             -- Position
@@ -398,6 +412,7 @@ function animator.reorderImage(img, newParent, preserveAbsoluteTransformation)
     -- Assign to new Parent
     table.insert(newParent.images, img)
     img.bone = newParent
+    img.boneID = newParent.id
     -- Retransform Image to make sure it doesn't change orientation
     if preserveAbsoluteTransformation then
         -- img.__x = bone.__x + img.x * bone.baseRx + img.y * bone.baseFx * bone.scaleY

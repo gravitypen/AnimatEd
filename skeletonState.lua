@@ -20,11 +20,12 @@ skeletonState = {
 
 function skeletonState.load()
 	-- Load Skeletons
+	skeletonState.dummySkeleton = animator.newSkeleton("#dummy", "not_an_actual_path")
 end
 
 
 function skeletonState.enter()
-	skeletonState.skeletons[1] = test.skel
+	--skeletonState.skeletons[1] = test.skel
 	--skeletonState.skeletons[1].defaultPose = animator.newPose(skeletonState.skeletons[1])
 	skeletonState.mode = skeletonState.modes.bones
 	skeletonState.selectedElement = nil
@@ -312,12 +313,18 @@ function skeletonState.draw()
 					textInput("Root Path for '" .. name .. "' Skeleton:", "", function(path) 
 						if string.len(path) > 5 then
 							-- Create
-							local skel = animator.newSkeleton(name, path)
-							table.insert(skeletonState.skeletons, skel)
+							local skel = skeletonState.loadSkeleton(path)
+							local fresh = false
+							if not skel then skel = animator.newSkeleton(name, path); fresh = true end
+							skeletonState.addSkeletonToMetaList(skel)
+							--table.insert(skeletonState.skeletons, skel)
 							-- Apply as currently edited skeleton
 							skeletonState.currentSkeleton = skel
 							skeletonState.editing = true
-							animator.newBone("ROOT", skel)
+							if fresh then 
+								animator.newBone("ROOT", skel)
+								skeletonState.saveCurrentSkeleton()
+							end
 							print("New Skeleton's Path: " .. skel.projectPath)
 						end
 					end, nil, nil)
@@ -386,12 +393,13 @@ function skeletonState.draw()
 			end)
 		end
 		-- Add Image
-		if skeletonState.selectedImage and skeletonState.selectedElement and skeletonState.selectedElement.tp == "bone" then
+		if skeletonState.selectedImage and (not skeletonState.selectedElement or skeletonState.selectedElement.tp == "bone") then
 			if button(states.windowW-110,states.windowH-25, 140,25, "Add to Bone") then
 				-- Apply State
 				skeletonState.mode = skeletonState.modes.images
 				-- Create Image
-				local img = animator.newImage(skel.imageList[skeletonState.selectedImage], skeletonState.selectedElement)
+				local parent = skeletonState.selectedElement or skeletonState.currentSkeleton.rootChild.childs[1]
+				local img = animator.newImage(skel.imageList[skeletonState.selectedImage], parent)
 				skeletonState.selectElement(img)
 			end
 		end
@@ -399,6 +407,11 @@ function skeletonState.draw()
 		-- Update Images
 		if button(states.windowW-110, states.windowH-75, 140, 25, "Refresh") then
 			animator.refreshImages(skel)
+		end
+
+		-- Save Skeleton
+		if button(260,12,100,25, "Save") then
+			skeletonState.saveCurrentSkeleton()
 		end
 
 		-- Make sure no element stays hovered
@@ -532,3 +545,158 @@ end
 		end
 		return false
 	end
+
+
+
+
+
+
+
+
+
+function skeletonState.loadSkeletons()
+	print("Loading Skeletons...")
+	if not skeletonState.metaFile then
+		skeletonState.metaPath = love.filesystem.getSaveDirectory() --lfs.currentdir()
+		print("Directory: " .. skeletonState.metaPath)
+		skeletonState.metaFileRelative = "list.txt"
+		skeletonState.metaFile = skeletonState.metaPath .. "/" .. skeletonState.metaFileRelative
+		-- Create empty file?
+		if love.filesystem.exists(skeletonState.metaFileRelative) then
+			print("Continuing as file already exists")
+		else
+			print("Creating file " .. skeletonState.metaFile)
+			local file, err = love.filesystem.newFile( skeletonState.metaFileRelative )
+			if file then
+				local success,err2 = file:open('w')
+				if file:isOpen() then
+					print("File created, writing")
+					file:close()
+				else
+					print("Error: Could not write to file! - " .. err2)
+				end
+			else
+				print("Error: Could not create file! - " .. err)
+			end
+		end
+	end
+	-- Load
+	local file = love.filesystem.newFile(skeletonState.metaFileRelative)
+	local success, err = file:open("r")
+	print("Trying to read " .. skeletonState.metaFile)
+	if file:isOpen() then
+		print("File open, reading content")
+		for s in file:lines() do
+			print("  Loading Skeleton " .. s)
+			-- Make sure skeleton isn't loaded yet
+			local found = false
+			for i = 1,#skeletonState.skeletons do
+				if skeletonState.skeletons[i].projectPath == s then found = true; break end
+			end
+			if not found then
+				-- Load Skeleton and append to list
+				local skel = skeletonState.loadSkeleton(s)
+				table.insert(skeletonState.skeletons, skel)
+			end
+		end
+	else
+		if err then print("Could not open file: " .. err) end
+	end
+	file:close()
+	print("Loading Done.")
+	print()
+end
+
+
+
+
+function skeletonState.addSkeletonToMetaList(skel)
+	-- Check whether path is unique
+	local found = false
+	for i = 1,#skeletonState.skeletons do
+		if skeletonState.skeletons[i].projectPath == skel.projectPath then found = true; break; end
+	end
+	if not found then
+		-- Add to List
+		table.insert(skeletonState.skeletons, skel)
+		-- Save File
+		local file = love.filesystem.newFile(skeletonState.metaFileRelative)
+		local success, err = file:open("a")
+		if success then
+			file:write(skel.projectPath .. "\n")
+			print("New Skeleton added to meta list!")
+		else
+			print("Could not add Skeleton to Meta List: " .. tostring(err))
+		end
+	end
+end
+
+function skeletonState.saveCurrentSkeleton()	
+	local path = skeletonState.currentSkeleton.projectPath
+
+    file, err = io.open(path .. "/skel.txt", "w")
+    if file == nil then
+    	infoDialog("Could not open file! See console for details.")
+        print("Error while opening file: " .. tostring(err) .. ". Nothing has been saved!")
+    else
+
+        file:write("return {\n")
+        writeTable(file, skeletonState.currentSkeleton, 1)
+        file:write("}\n")
+        file:close()
+       
+    end
+end
+
+
+function skeletonState.loadSkeleton(path)
+	local table = loadTable(path .. "/skel.txt")
+	if table then
+		local skel = animator.newSkeleton(table.name, path)
+		applyTable(table, skel)
+		skel.rootChild = skel.elementMap["b1"]
+		-- set up bones and images
+		for id,element in pairs(skel.elementMap) do
+			if element.tp == "bone" then
+				-- Bone
+				element.childs = {}
+				element.images = {}
+				for key,value in pairs(skeletonState.dummySkeleton.rootChild) do
+					if not element[key] then 
+						element[key] = value
+					end
+				end
+			else
+				-- Image
+				element.saveList = animator.saveLists.img
+				element.__highlight = 0
+				element.offX = 0.5
+				element.offY = 0.5
+			end
+		end
+		-- fix bone and image references
+		for id,element in pairs(skel.elementMap) do
+			if element.tp == "bone" then
+				print("Looking for parent with id " .. element.parentID .. " for bone " .. id)
+				element.parent = skel.elementMap[element.parentID]
+				if element.parent then
+					element.parent.childs[#element.parent.childs + 1] = element
+				else
+					element.parent = skel -- only for #root node
+				end
+			else
+				element.bone = skel.elementMap[element.boneID]
+				element.object = skel.imageList[element.name]
+				element.bone.images[#element.bone.images + 1] = element
+			end
+			element.skel = skel
+		end
+		skel.defaultPose.skel = skel
+		skel.defaultPose.saveList = animator.saveLists.pose
+		return skel
+	else
+		print("Could not load Skeleton at " .. path .. "!")
+	end
+	return nil
+end
+

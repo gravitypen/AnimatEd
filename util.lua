@@ -241,3 +241,64 @@ function wrapAngle(a)
     a = a - wrapAngle_pi2*math.floor(a*wrapAngle_pi2Inverted)
     return a
 end
+
+
+
+
+function writeTable(file, tbl, depth)
+    local function write(key, value)
+        local kType = type(key)
+        local vType = type(value)
+        if (kType == "number" or (kType == "string" and key:sub(1,2) ~= "__")) and
+           (vType == "table" or vType == "string" or vType == "boolean" or vType == "number") then
+                if kType == "string" then
+                        file:write(string.rep("\t", depth) .. '["' .. key .. '"] = ')
+                elseif kType == "number" then
+                        file:write(string.rep("\t", depth))
+                end
+
+                if vType == "table" then
+                    file:write("{\n")
+                    writeTable(file, value, depth + 1)
+                    file:write(string.rep("\t", depth) .. "},\n")
+                elseif vType == "string" then
+                        file:write('"' .. value .. '",\n')
+                elseif vType == "boolean" or vType == "number" then
+                        file:write(tostring(value) .. ",\n")
+                end                               
+        end
+    end
+
+
+    if tbl.saveList then
+        -- only save list
+        for i = 1,#tbl.saveList do
+            local key = tbl.saveList[i]
+            local value = tbl[key]
+            write(key, value)
+        end
+    else
+        -- full table
+        for key, value in pairs(tbl) do
+            write(key, value)
+        end
+    end
+
+end
+
+function loadTable(path)
+    f, err = loadfile(path)
+    if f == nil then 
+        print("Error while opening/parsing file: " .. tostring(err))
+    else 
+        local fileTable = f()
+        return fileTable
+    end
+    return nil
+end
+
+function applyTable(src, trg)
+    for key, value in pairs(src) do
+        trg[key] = value
+    end
+end
