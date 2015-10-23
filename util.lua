@@ -171,6 +171,12 @@ function questionDialog(caption, yesCallback, noCallback)
     }
 end
 
+function createDialog(caption, buttons)
+    dialogHandler.active = true
+    dialogHandler.caption = caption
+    dialogHandler.buttons = buttons
+end
+
 function infoDialog(caption)
     dialogHandler.active = true
     dialogHandler.caption = caption
@@ -291,6 +297,7 @@ function loadTable(path)
     if f == nil then 
         print("Error while opening/parsing file: " .. tostring(err))
     else 
+        print("Loading table from " .. path)
         local fileTable = f()
         return fileTable
     end

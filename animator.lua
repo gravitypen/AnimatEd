@@ -19,6 +19,8 @@ function animator.load()
         pose = {"tp", "name", "id", "state"},
         bone = {"tp", "name", "id", "parentID", "drawOverParent", "x", "y", "alpha", "angle", "scaleX", "scaleY", "length"},
         img = {"tp", "name", "id", "idNum", "boneID", "scaleX", "scaleY", "x", "y", "angle", "alpha"},
+        animation = {"tp", "name", "duration", "keyframes"},
+        keyframe = {"tp", "p", "elementID", "interpolation", "x", "y", "angle", "xscale", "yscale", "alpha"},
     }
 end
 
@@ -175,11 +177,12 @@ end
 -- certain point in time
 function animator.newAnimation(name, skel, duration)
     local ani = {
+        saveList = animator.saveLists.animation,
         tp="ani",
         name = name,
         skel = skel,
         duration = duration or 1.0,
-        keyframes = {}        
+        keyframes = {} -- key value map, keyframes[boneOrImageID] had childs .affects[1..6] plus [1..keyFrameCount] referencing keyframes
     }
     -- Keyframe List per Bone and Image Instance
     for id,element in pairs(skel.elementMap) do
@@ -205,6 +208,7 @@ function animator.newKeyframe(ani, p, elementID, interpolation, xpos, ypos, angl
         elementID = element.id
     end
     local keyframe = {
+        saveList = animator.saveLists.keyframe,
         tp="keyframe",
         ani = ani,
         p = p,
@@ -242,7 +246,17 @@ end
 
 
 
-
+function animator.deleteKeyframe(kf)
+    -- remove from animation
+    local list = kf.ani.keyframes[kf.elementID]
+    for i = 1,#list do
+        if list[i] == kf then
+            table.remove(list, i)
+            return true
+        end
+    end
+    return false
+end
 
 
 
@@ -267,6 +281,7 @@ end
 -- previously loaded
 function animator.refreshImages(skel)
     print("Refreshing, project path is " .. skel.projectPath .. " for skeleton ".. skel.name)
+    if skel.projectPath == "#ignore" then print("Ignoring skeleton images, as path is #ignore") return end
     success = lfs.chdir(skel.projectPath .. "/images")
     if success then 
         for originalFile in lfs.dir(".") do
@@ -540,11 +555,17 @@ function animator.applyAnimation(pose, ani, p)
             -- Interpolate
             if iL == iR then
                 -- no interpolation required
-                return affectingKeyframe[iL][attr]
+                return affectingKeyframes[iL][attr]
             else
                 -- Interpolate between both keyframes
                 local blend = (p - affectingKeyframes[iL].p)/(affectingKeyframes[iR].p - affectingKeyframes[iL].p)
-                return animator.interpolate(affectingKeyframes[iL].interpolation, affectingKeyframes[iL][attr], affectingKeyframes[iR][attr], blend)
+                if affectingKeyframes[iL].interpolation[5] then
+                    -- interpolation stored separately for each attribute (4 indices would mean one interpolation curve, so existence of at least 5 attributes is checked)
+                    return animator.interpolate(affectingKeyframes[iL].interpolation[attr], affectingKeyframes[iL][attr], affectingKeyframes[iR][attr], blend)
+                else
+                    -- single interpolation for all attributes
+                    return animator.interpolate(affectingKeyframes[iL].interpolation, affectingKeyframes[iL][attr], affectingKeyframes[iR][attr], blend)
+                end
             end
         end
         -- no keyframe at all that influences attribute -> don't change attribute
@@ -771,7 +792,7 @@ function animator.drawImage(img)
         if img.__highlight > 0 then
             img.__highlight = img.__highlight - 1
         end
-        love.graphics.setColor(255,255,255, 220)
+        love.graphics.setColor(255,255,255, 220*bone.__alpha * img.alpha)
     else
         love.graphics.setColor(255,255,255, 255*bone.__alpha * img.alpha)
     end

@@ -5,7 +5,7 @@ skeletonState = {
 	shortcuts = {},
 	skeletons = {},
 	currentID = 0,
-	currentSkeleton = test.skel,
+	currentSkeleton = nil,
 	zoomLevel = 0,
 	zoom = 1.0,
 	modes = {bones = 1, images = 2},
@@ -15,12 +15,14 @@ skeletonState = {
 	editing = false,
 	camX = 0,
 	camY = 0,
+	helpText = {"V", "Show full Character",   "TAB", "Bone/Img Mode",   "CTRL", "Camera",   "MWheel", "Rotate Image", "Alt/X/Y/R+Wheel", "        Image Scale",
+		"CTRL","Bone Length",   "Shift/R","Bone Scale",   "Alt+Click", "Select Below",   "Shift+Click", "Reorder to Parent"},
 }
 
 
 function skeletonState.load()
 	-- Load Skeletons
-	skeletonState.dummySkeleton = animator.newSkeleton("#dummy", "not_an_actual_path")
+	skeletonState.dummySkeleton = animator.newSkeleton("#dummy", "#ignore")
 end
 
 
@@ -30,6 +32,9 @@ function skeletonState.enter()
 	skeletonState.mode = skeletonState.modes.bones
 	skeletonState.selectedElement = nil
 	skeletonState.hoveredElement = nil
+	skeletonState.currentSkeleton = test.skel
+	 skeletonState.saveCurrentSkeleton()	
+	 skeletonState.currentSkeleton = nil
 	--questionDialog("Test Question", function() print("It worked!") end, function() print("No was clicked") end)
 end
 
@@ -155,7 +160,6 @@ function skeletonState.update()
 		states.mouse.dragCallback = function(dx,dy) 
 			skeletonState.camX = skeletonState.camX - states.mouse.mx/skeletonState.zoom --dx/skeletonState.zoom
 			skeletonState.camY = skeletonState.camY - states.mouse.my/skeletonState.zoom --dy/skeletonState.zoom
-			print("Dragging by dif " .. dx .. "," .. dy) 
 		end
 		states.mouse.dropCallback = nil
 	end
@@ -175,9 +179,9 @@ end
 	end
 
 	function skeletonState.moveBone(bone, dx, dy, moveStartPos, moveEndPos)
-		local pose = skeletonState.currentSkeleton.defaultPose
+		local pose = (states.current == states.skeleton) and skeletonState.currentSkeleton.defaultPose or animationState.pose
 		-- Transform dx,dy to make sure bone moves relative to screen
-		-- Rotate by -bone.angle 
+		-- Rotate by -bone.angle  
 		local s, c, ang, newdx, newdy
 		ang = -bone.parent.__angle
 		s = math.sin(ang)
@@ -194,6 +198,8 @@ end
 			local difx = bone.length * state[6] * math.sin(state[3]) + newdx
 			local dify = bone.length * state[6] * math.cos(state[3]) + newdy
 			newAngle = getAngle(-difx, -dify)
+			-- Make sure no angle wrapping appears while moving bone
+			if newAngle > state[3] + math.pi then newAngle = newAngle - 2*math.pi elseif newAngle < state[3] - math.pi then newAngle = newAngle + 2*math.pi end
 			if states.getKeyDown("lshift") then 
 				-- Press Shift to change scaling
 				newScale = math.sqrt(difx*difx + dify*dify)/bone.length 
@@ -204,17 +210,22 @@ end
 			if states.getKeyDown("r") then newScale = 1.0 end
 		end
 		-- Apply
-		animator.setPoseBone(pose, bone,
-			x1,
-			y1,
-			newAngle,
-			nil,
-			newScale
-		)
+		if states.current == states.skeleton then 
+			animator.setPoseBone(pose, bone,
+				x1,
+				y1,
+				newAngle,
+				nil,
+				newScale
+			)
+		else 
+			-- Animating
+			animationState.applyToKeyframe(bone, x1, y1, newAngle, nil, newScale)
+		end
 	end
 
 	function skeletonState.moveImage(img, dx, dy)
-		local pose = skeletonState.currentSkeleton.defaultPose
+		local pose = (states.current == states.skeleton) and skeletonState.currentSkeleton.defaultPose or animationState.pose
 		-- Transform dx,dy to make sure bone moves relative to screen
 		-- Rotate by -bone.angle 
 		local parent = img.bone
@@ -230,14 +241,20 @@ end
 		local newAngle = state[3]
 		local newScale = state[6]
 		-- Apply
-		animator.setPoseImage(pose, img,
-			x1,
-			y1,
-			newAngle,
-			nil,
-			newScale,
-			state[4]
-		)
+		-- Apply
+		if states.current == states.skeleton then 
+			animator.setPoseImage(pose, img,
+				x1,
+				y1,
+				newAngle,
+				nil,
+				newScale,
+				state[4]
+			)
+		else
+			-- Animating
+			animationState.applyToKeyframe(img, x1, y1, newAngle, nil, newScale, state[4])
+		end
 	end
 
 
@@ -247,6 +264,7 @@ function skeletonState.draw()
 	--love.graphics.setColor(editor.backColor)
 	--love.graphics.rectangle("fill", 0, 0, states.windowW, states.windowH)
 	drawGrid(skeletonState.camX, skeletonState.camY, skeletonState.zoom)
+	states.helpText(skeletonState.helpText, states.windowH-50)
 
 	-- Selected Skeleton
 	local skel = skeletonState.currentSkeleton
@@ -423,7 +441,7 @@ end
 
 
 function skeletonState.highlight(e)
-	if e then
+	if e and not states.getKeyDown("v") then
 		if e.tp == "bone" then
 			if e.name ~= "#root" then
 				animator.reapplyPreviousPoseTransformation()

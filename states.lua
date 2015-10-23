@@ -284,3 +284,22 @@ function states.resetScissor()
 		love.graphics.setScissor()
 	end
 end
+
+
+
+
+function states.helpText(list, y)
+	local x0 = 250
+	local x = x0
+	for i = 1,#list,2 do
+		love.graphics.setColor(255,255,255,255)
+		love.graphics.print(list[i], x, y)
+		love.graphics.setColor(255,255,255,180)
+		love.graphics.print(list[i+1], x+80, y)
+		x = x + 250
+		if x > states.windowW - 350 then
+			y = y + 20
+			x = x0
+		end
+	end
+end

@@ -186,9 +186,9 @@ function blender.update(aniBlender, applyToPose)
 			if ani.loopsRemaining > 0 then
 				ani.loopsRemaining = ani.loopsRemaining - math.floor(ani.progress)
 				ani.progress = ani.progress - math.floor(ani.progress)
-				if ani.loopsRemaining <= 0 then
+				if ani.loopsRemaining <= 0 and ani.fadeStep >= 0 then
 					-- Animation has run out
-					ani.fadeStep = -0.01 -- -1.5*math.abs(ani.fadeStep) ---2.0/blender.td
+					ani.fadeStep = -1.0*math.abs(ani.fadeStep) - 0.1 ---2.0/blender.td
 				end
 			else
 				-- Animation loops indefinitely, so simply reset progress
@@ -233,7 +233,7 @@ function blender.update(aniBlender, applyToPose)
 					if keyframes.affects[k] then
 						if aniBlender.anis[i].opacity >= 1.0 then
 							-- Simply apply value
-							poseState[k] = tempPoseState[k]
+							poseState[k] = tempPoseState[k] + love.math.random()*0
 						else
 							-- Blend onto existing value
 							poseState[k] = aniBlender.anis[i].opacity*tempPoseState[k] + (1.0 - aniBlender.anis[i].opacity)*poseState[k]
@@ -257,7 +257,7 @@ function blender.debug(aniBlender, x, y)
 		love.graphics.print(i .. ". " .. aniBlender.anis[i].animation.name .. ", " 
 			.. aniBlender.anis[i].loopsRemaining .. ", "
 			.. math.floor(10*aniBlender.anis[i].progress) .. ", "
- 			.. math.floor(1000*aniBlender.anis[i].opacity) .. " (" .. aniBlender.anis[i].fadeStep .. ")"
+ 			.. math.floor(1000*aniBlender.anis[i].opacity) .. " (" .. aniBlender.anis[i].fadeStep .. "), "
  			, x, y)
 		y = y + 20
 	end

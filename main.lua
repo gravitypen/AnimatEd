@@ -49,7 +49,6 @@ function love.textinput(t)
 end
 
 
-
 function love.draw()
     states.draw()
     drawTextInput()
@@ -65,6 +64,13 @@ function love.update(td)
 	states.update()
 end
 
+
+if false then
+
+    love.draw = function() test.draw() end
+    love.update = function(td) test.update(td) end
+
+end
 
 
 

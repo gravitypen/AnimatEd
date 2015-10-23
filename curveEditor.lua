@@ -97,14 +97,19 @@ do
     end
    
     function curveEditor.mousepressed(x, y, button)
+        print("Mouse Event!")
         if button == "l" then
+            print("Left")
             local lx, ly = x - curveEditor.position[1], y - curveEditor.position[2]
             if true or lx > 0 and lx < curveEditor.size[1] and ly > 0 and ly < curveEditor.size[2] then
+                print("Yes")
                 if hoveringMarker(x, y, curveEditor.startMarker) then
+                    print("DragStart")
                     curveEditor.dragging = curveEditor.startMarker
                 end
                
                 if hoveringMarker(x, y, curveEditor.endMarker) then
+                    print("DragEnd")
                     curveEditor.dragging = curveEditor.endMarker
                 end
             end

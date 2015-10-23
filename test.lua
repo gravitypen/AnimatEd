@@ -12,7 +12,7 @@ end
 
 function test.init()
 	-- Create Skeleton
-	local skel = animator.newSkeleton("skelWolf", 'D:/programming/love-0.9.2-win32/AnimatEd/test/testSkeleton')
+	local skel = animator.newSkeleton("skelWolf", 'D:/programming/love-0.9.2-win32/AnimatEd/test/testSkel2')
 	-- Temporary, as file system access isn't integrated
 	--animator.addImageFile(skel, "torso.png")
 	--animator.addImageFile(skel, "head1.png")
@@ -87,7 +87,8 @@ function test.init()
 			animator.newKeyframe(ani, 1.0, iTorso, "", 0, 20)
 	local ani2 = animator.newAnimation("aniWalk", skel, 0.7)
 		leg = animator.getBoneByName(skel, "Left Leg")
-			animator.newKeyframe(ani2, 0.0, leg, {0.3,0.0, 0.7,1.0}, -16, -62, degree(240), nil, 1.0, nil)		
+			--animator.newKeyframe(ani2, 0.0, leg, {0.3,0.0, 0.7,1.0}, -16, -62, degree(240), nil, 1.0, nil)		
+			animator.newKeyframe(ani2, 0.0, leg, "cos", -16, -62, degree(240), nil, 1.0, nil)		
 			--animator.newKeyframe(ani2, 0.0, leg, "cos", nil, nil, degree(220), nil, nil, nil)
 			animator.newKeyframe(ani2, 0.55, leg, "linear", -5, -62, degree(130), nil, 1.8, nil)
 			animator.newKeyframe(ani2, 1.0, leg, "", -16, -62, degree(240), nil, 1.0, nil)
@@ -120,30 +121,59 @@ function test.init()
 	test.leg2 = animator.getBoneByName(skel, "Left Foot")
 	test.blender = aniBlender
 
+	test.poses = {}
+	test.blenders = {}
+	for i = 1,10 do
+		table.insert(test.poses, animator.newPose(skel, "Pose" .. i))
+		table.insert(test.blenders, blender.newAniBlender(test.poses[i], ani))
+		blender.playAni(test.blenders[i], ani, -1, 1)
+		blender.playAni(test.blenders[i], ani2, i, 1)
+	end
+
 	print("- - - - - - - - - - ")
-	animator.drawPose(test.pose, 400, 400, 0.0, 1.0, 1.0, 1.0)
-	animator.drawDebugSkeleton(test.skel, 400, 400, 0.0, 1.0, 1.0, 1.0)
+	--animator.drawPose(test.pose, 400, 400, 0.0, 1.0, 1.0, 1.0)
+	--animator.drawDebugSkeleton(test.skel, 400, 400, 0.0, 1.0, 1.0, 1.0)
 
 end
 
-
+test.cycles = 0
+test.updateTime = 0
+test.drawTime = 0 
 
 function test.update(td)
-	if love.keyboard.isDown(" ") then blender.playAni(test.blender, test.ani2, 5, 1) end
+	local t0 = love.timer.getTime()
+	if love.keyboard.isDown(" ") then blender.playAni(test.blenders[2], test.ani2, 3, 1) end
 	blender.updateTime(td)
-	blender.update(test.blender)
+	for i = 1,#test.poses do
+		blender.update(test.blenders[i])
+	end
+	--blender.update(test.blender)
 	-- Animate bones - note: this does not work when animator.applyPose (or drawPose) is executed afterwards as they'll overwrite bone transformations
 	--animator.setPoseBone(test.pose, test.arm, nil, nil, degree(150+20*math.sin(love.timer.getTime()*5)))
 	--animator.setPoseBone(test.pose, test.leg, nil, nil, degree(195+20*math.sin(love.timer.getTime()*3)))
 	--animator.setPoseBone(test.pose, test.leg2, nil, nil, degree(-20+15*math.sin(love.timer.getTime()*5.6)))
-	animator.setPoseBone(test.pose2, animator.getBoneByName(test.skel, "Torso"), nil, nil, 0.15*love.timer.getTime())
+	--animator.setPoseBone(test.pose2, animator.getBoneByName(test.skel, "Torso"), nil, nil, 0.15*love.timer.getTime())
 	--local p = love.timer.getTime()*0.5
 	--animator.applyAnimation(test.pose, test.ani, p - math.floor(p))
 	--p = p*3
 	--animator.applyAnimation(test.pose, test.ani2, p - math.floor(p))
+	local tdif = love.timer.getTime() - t0
+	test.cycles = test.cycles + 1
+	test.updateTime = test.updateTime + tdif
 end
 
 function test.draw()
+	local t0 = love.timer.getTime()
+	for i = 1,#test.poses do
+		animator.drawPose(test.poses[i], 100 + 200*((i-1) % 5), 200 + 300*math.floor((i-1)/5), 0.0, 1.0, 1.0, 1.0, false)
+	end
+	local tdif = love.timer.getTime() - t0
+	test.drawTime = test.drawTime + tdif
+	blender.debug(test.blenders[2])
+	print("Cycles: " .. test.cycles .. " - Update: " .. 1000*test.updateTime/test.cycles .. "ms - Draw: " .. 1000*test.drawTime/test.cycles .. "ms")
+end
+
+function test.drawShitty()
 	if love.keyboard.isDown("lshift") then scx = -1 else scx = 1 end
 	if love.keyboard.isDown("h") then animator.getBoneByName(test.skel, "Head").scaleX = -1.0 else animator.getBoneByName(test.skel, "Head").scaleX = 1.0 end
 	-- Note: Drawing Pose will overwrite all bone transformations previously applied, as they're fixed within the pose
